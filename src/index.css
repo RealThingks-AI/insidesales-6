@@ -1,14 +1,13 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* CRM Design System - Professional and Modern */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
+    --background: 240 10% 98%;
     --foreground: 222.2 84% 4.9%;
 
     --card: 0 0% 100%;
@@ -17,80 +16,99 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Professional CRM Blue Palette */
+    --primary: 214 100% 50%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 214 32% 96%;
+    --secondary-foreground: 214 100% 25%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 214 20% 95%;
+    --muted-foreground: 214 15% 55%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 214 50% 90%;
+    --accent-foreground: 214 100% 30%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 214 20% 90%;
+    --input: 214 20% 90%;
+    --ring: 214 100% 50%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
-    --sidebar-background: 0 0% 98%;
+    /* Sidebar colors */
+    --sidebar-background: 214 40% 8%;
+    --sidebar-foreground: 214 20% 80%;
+    --sidebar-primary: 214 100% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 214 30% 15%;
+    --sidebar-accent-foreground: 214 20% 90%;
+    --sidebar-border: 214 30% 20%;
+    --sidebar-ring: 214 100% 50%;
 
-    --sidebar-foreground: 240 5.3% 26.1%;
+    /* CRM Status Colors */
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 38 92% 10%;
+    --info: 199 89% 48%;
+    --info-foreground: 0 0% 100%;
 
-    --sidebar-primary: 240 5.9% 10%;
+    /* Chart Colors */
+    --chart-1: 214 100% 50%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 38 92% 50%;
+    --chart-4: 280 87% 65%;
+    --chart-5: 340 82% 52%;
 
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Pipeline Stage Colors */
+    --pipeline-lead: 214 100% 50%;
+    --pipeline-qualified: 199 89% 48%;
+    --pipeline-proposal: 38 92% 50%;
+    --pipeline-negotiation: 280 87% 65%;
+    --pipeline-won: 142 76% 36%;
+    --pipeline-lost: 0 84% 60%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    --background: 214 40% 8%;
+    --foreground: 214 20% 90%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 214 35% 10%;
+    --card-foreground: 214 20% 90%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 214 35% 10%;
+    --popover-foreground: 214 20% 90%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 214 100% 50%;
+    --primary-foreground: 214 40% 8%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 214 30% 15%;
+    --secondary-foreground: 214 20% 80%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 214 30% 15%;
+    --muted-foreground: 214 15% 65%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 214 30% 20%;
+    --accent-foreground: 214 20% 90%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
+    --border: 214 30% 20%;
+    --input: 214 30% 20%;
+    --ring: 214 100% 50%;
+
+    --sidebar-background: 214 50% 5%;
+    --sidebar-foreground: 214 20% 80%;
+    --sidebar-primary: 214 100% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-accent: 214 35% 10%;
+    --sidebar-accent-foreground: 214 20% 90%;
+    --sidebar-border: 214 30% 15%;
+    --sidebar-ring: 214 100% 50%;
   }
 }
 
@@ -100,6 +118,75 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold text-foreground;
+  }
+}
+
+@layer components {
+  /* CRM Specific Components */
+  .crm-card {
+    @apply bg-card border border-border rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200;
+  }
+
+  .crm-metric {
+    @apply text-2xl font-bold text-foreground;
+  }
+
+  .crm-metric-label {
+    @apply text-sm font-medium text-muted-foreground uppercase tracking-wide;
+  }
+
+  .pipeline-stage {
+    @apply bg-muted/50 border border-border rounded-lg p-4 min-h-[200px];
+  }
+
+  .deal-card {
+    @apply bg-card border border-border rounded-lg p-3 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer;
+  }
+
+  /* Status Badges */
+  .status-success {
+    @apply bg-success/10 text-success border border-success/20 rounded-full px-2 py-1 text-xs font-medium;
+  }
+
+  .status-warning {
+    @apply bg-warning/10 text-warning border border-warning/20 rounded-full px-2 py-1 text-xs font-medium;
+  }
+
+  .status-info {
+    @apply bg-info/10 text-info border border-info/20 rounded-full px-2 py-1 text-xs font-medium;
+  }
+
+  .status-error {
+    @apply bg-destructive/10 text-destructive border border-destructive/20 rounded-full px-2 py-1 text-xs font-medium;
+  }
+
+  /* Animation utilities */
+  .fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+  }
+
+  .slide-up {
+    animation: slideUp 0.3s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes slideUp {
+    from { 
+      opacity: 0; 
+      transform: translateY(10px); 
+    }
+    to { 
+      opacity: 1; 
+      transform: translateY(0); 
+    }
   }
 }
