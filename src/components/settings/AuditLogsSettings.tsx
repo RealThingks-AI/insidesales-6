@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -149,7 +148,7 @@ const AuditLogsSettings = () => {
     setFilteredLogs(filtered);
   };
 
-  // Deduplicate authentication events - show only first/last login per day, max 5 entries per user per day
+  // Deduplicate authentication events - show only first login and last logout per day per user
   const deduplicateAuthLogs = (authLogs: AuditLog[]) => {
     if (authLogs.length === 0) return authLogs;
 
@@ -191,7 +190,6 @@ const AuditLogsSettings = () => {
       // Sort by timestamp (newest first)
       dailyLogs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       
-      const importantLogs: AuditLog[] = [];
       const loginLogs = dailyLogs.filter(log => log.action.includes('LOGIN'));
       const logoutLogs = dailyLogs.filter(log => log.action.includes('LOGOUT'));
       const otherLogs = dailyLogs.filter(log => 
@@ -201,35 +199,20 @@ const AuditLogsSettings = () => {
         log.action.includes('DEACTIVATE')
       );
 
-      // Add first and last login of the day
+      // Add first login of the day (chronologically earliest)
       if (loginLogs.length > 0) {
-        // First login (chronologically earliest)
-        const firstLogin = loginLogs[loginLogs.length - 1];
-        importantLogs.push(firstLogin);
-        
-        // Last login (chronologically latest) - only if different from first
-        if (loginLogs.length > 1) {
-          const lastLogin = loginLogs[0];
-          if (lastLogin.id !== firstLogin.id) {
-            importantLogs.push(lastLogin);
-          }
-        }
+        const firstLogin = loginLogs[loginLogs.length - 1]; // Last in reversed array = first chronologically
+        uniqueLogs.push(firstLogin);
       }
 
-      // Add first logout of the day if it exists
+      // Add last logout of the day (chronologically latest)
       if (logoutLogs.length > 0) {
-        importantLogs.push(logoutLogs[logoutLogs.length - 1]);
+        const lastLogout = logoutLogs[0]; // First in reversed array = last chronologically
+        uniqueLogs.push(lastLogout);
       }
 
       // Add important security events (password resets, etc.)
-      importantLogs.push(...otherLogs);
-
-      // Limit to maximum 5 entries per user per day
-      const selectedLogs = importantLogs
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-        .slice(0, 5);
-
-      uniqueLogs.push(...selectedLogs);
+      uniqueLogs.push(...otherLogs);
     }
 
     return uniqueLogs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
@@ -372,7 +355,7 @@ const AuditLogsSettings = () => {
               <SelectContent>
                 <SelectItem value="all">All Activities</SelectItem>
                 <SelectItem value="record_changes">Record Changes</SelectItem>
-                <SelectItem value="authentication">Authentication</SelectItem>
+                <SelectItem value="authentication">Authentication (Filtered)</SelectItem>
                 <SelectItem value="user_management">User Management</SelectItem>
                 <SelectItem value="export">Data Export</SelectItem>
               </SelectContent>
