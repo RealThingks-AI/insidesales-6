@@ -1,111 +1,247 @@
 
-import { NavLink, useLocation } from "react-router-dom";
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  useSidebar,
-} from "@/components/ui/sidebar";
 import { 
   Home, 
   Users, 
   UserPlus, 
-  Handshake, 
-  Building2, 
-  BarChart3,
+  BarChart3, 
   Settings,
-  Target
+  LogOut,
+  Pin,
+  PinOff
 } from "lucide-react";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { useState, useEffect } from "react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
-const navigationItems = [
+const menuItems = [
   { title: "Dashboard", url: "/", icon: Home },
-  { title: "Leads", url: "/leads", icon: UserPlus },
   { title: "Contacts", url: "/contacts", icon: Users },
-  { title: "Deals", url: "/deals", icon: Handshake },
-];
-
-const managementItems = [
-  { title: "Analytics", url: "/analytics", icon: BarChart3 },
+  { title: "Leads", url: "/leads", icon: UserPlus },
+  { title: "Deals", url: "/deals", icon: BarChart3 },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 
-export function AppSidebar() {
-  const { collapsed } = useSidebar();
+interface AppSidebarProps {
+  isFixed?: boolean;
+  isOpen?: boolean;
+  onToggle?: (open: boolean) => void;
+}
+
+export function AppSidebar({ isFixed = false, isOpen, onToggle }: AppSidebarProps) {
+  // Start collapsed by default
+  const [isPinned, setIsPinned] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, signOut } = useAuth();
+  const currentPath = location.pathname;
+
+  // Use external state if provided (for fixed mode), otherwise use internal state
+  const sidebarOpen = isFixed ? (isOpen ?? false) : isPinned;
+  const setSidebarOpen = isFixed ? (onToggle || (() => {})) : setIsPinned;
 
   const isActive = (path: string) => {
     if (path === "/") {
-      return location.pathname === "/";
+      return currentPath === "/";
     }
-    return location.pathname.startsWith(path);
+    return currentPath.startsWith(path);
   };
 
-  const getNavClassName = (path: string) => 
-    isActive(path) 
-      ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" 
-      : "hover:bg-sidebar-accent/50 text-sidebar-foreground";
+  const handleSignOut = async () => {
+    console.log('Sign out clicked');
+    await signOut();
+  };
+
+  const handleLogoClick = () => {
+    navigate('/');
+  };
+
+  const getUserDisplayName = () => {
+    return user?.user_metadata?.full_name || user?.email || 'User';
+  };
+
+  const togglePin = () => {
+    if (isFixed) {
+      onToggle?.(!sidebarOpen);
+    } else {
+      setIsPinned(!isPinned);
+    }
+  };
 
   return (
-    <Sidebar className={collapsed ? "w-14" : "w-64"} collapsible>
-      <SidebarContent>
-        {/* Header */}
-        <div className="p-4 border-b border-sidebar-border">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-sidebar-primary rounded-lg flex items-center justify-center">
-              <Building2 className="w-5 h-5 text-sidebar-primary-foreground" />
-            </div>
-            {!collapsed && (
-              <div>
-                <h2 className="text-lg font-semibold text-sidebar-foreground">CRM</h2>
-                <p className="text-xs text-sidebar-foreground/70">Customer Management</p>
+    <div 
+      className={`h-screen flex flex-col border-r border-sidebar-border bg-sidebar-background transition-all duration-300 ease-in-out ${
+        isFixed ? 'relative' : ''
+      }`}
+      style={{ 
+        width: sidebarOpen ? '220px' : '60px',
+        minWidth: sidebarOpen ? '220px' : '60px',
+        maxWidth: sidebarOpen ? '220px' : '60px'
+      }}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-sidebar-border relative" style={{ height: '72px', padding: '0 16px' }}>
+        <div className="flex items-center cursor-pointer" onClick={handleLogoClick}>
+          <img 
+            src="/lovable-uploads/12bdcc4a-a1c8-4ccf-ba6a-931fd566d3c8.png" 
+            alt="Logo" 
+            className="w-8 h-8 flex-shrink-0 object-contain"
+          />
+          {sidebarOpen && (
+            <span className="ml-3 text-sidebar-foreground font-semibold text-lg whitespace-nowrap opacity-100 transition-opacity duration-300" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
+              RealThingks
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Menu Items */}
+      <div className="flex-1 py-4">
+        <nav className="space-y-1 px-2">
+          {menuItems.map((item) => {
+            const active = isActive(item.url);
+            const menuButton = (
+              <NavLink
+                to={item.url}
+                 className={`
+                  flex items-center rounded-lg relative transition-colors duration-200 font-medium
+                  ${active 
+                    ? 'text-sidebar-primary bg-sidebar-accent' 
+                    : 'text-sidebar-foreground hover:text-sidebar-primary hover:bg-sidebar-accent/50'
+                  }
+                `}
+                style={{ 
+                  paddingLeft: sidebarOpen ? '16px' : '0px',
+                  paddingRight: sidebarOpen ? '16px' : '0px',
+                  paddingTop: '10px',
+                  paddingBottom: '10px',
+                  minHeight: '44px',
+                  fontFamily: 'Inter, system-ui, sans-serif',
+                  fontSize: '15px',
+                  fontWeight: '500'
+                }}
+              >
+                <div 
+                  className="flex items-center justify-center"
+                  style={{ 
+                    width: sidebarOpen ? '20px' : '60px',
+                    height: '20px',
+                    minWidth: '20px',
+                    minHeight: '20px'
+                  }}
+                >
+                  <item.icon 
+                    className="w-5 h-5" 
+                    style={{ 
+                      minWidth: '20px',
+                      minHeight: '20px'
+                    }} 
+                  />
+                </div>
+                {sidebarOpen && (
+                  <span 
+                    className="ml-3 opacity-100 transition-opacity duration-300"
+                  >
+                    {item.title}
+                  </span>
+                )}
+              </NavLink>
+            );
+
+            if (!sidebarOpen) {
+              return (
+                <Tooltip key={item.title}>
+                  <TooltipTrigger asChild>
+                    {menuButton}
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="ml-2">
+                    <p>{item.title}</p>
+                  </TooltipContent>
+                </Tooltip>
+              );
+            }
+
+            return (
+              <div key={item.title}>
+                {menuButton}
               </div>
-            )}
-          </div>
+            );
+          })}
+        </nav>
+      </div>
+
+        {/* Bottom Section - Pin Toggle & User & Sign Out */}
+      <div className="border-t border-sidebar-border p-4 space-y-3 relative">
+        {/* Pin Toggle Button - Always bottom-left aligned */}
+        <div className="flex" style={{ justifyContent: sidebarOpen ? 'flex-start' : 'flex-start', paddingLeft: sidebarOpen ? '0px' : '6px' }}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={togglePin}
+                className={`flex items-center justify-center w-8 h-8 rounded-lg transition-colors ${
+                  sidebarOpen 
+                    ? 'text-sidebar-primary bg-sidebar-accent hover:bg-sidebar-accent/80' 
+                    : 'text-sidebar-foreground/70 hover:text-sidebar-primary hover:bg-sidebar-accent/50'
+                }`}
+              >
+                {sidebarOpen ? <Pin className="w-4 h-4" /> : <PinOff className="w-4 h-4" />}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side={sidebarOpen ? "bottom" : "right"}>
+              <p>{sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}</p>
+            </TooltipContent>
+          </Tooltip>
         </div>
 
-        {/* Main Navigation */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Main</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {navigationItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink to={item.url} className={getNavClassName(item.url)}>
-                      <item.icon className="w-5 h-5" />
-                      {!collapsed && <span className="ml-3">{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {/* Management */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Management</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {managementItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink to={item.url} className={getNavClassName(item.url)}>
-                      <item.icon className="w-5 h-5" />
-                      {!collapsed && <span className="ml-3">{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      </SidebarContent>
-    </Sidebar>
+        {/* User & Sign Out */}
+        {!sidebarOpen ? (
+          <div className="flex justify-center">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={handleSignOut}
+                  className="flex items-center justify-center w-10 h-10 text-sidebar-foreground hover:text-sidebar-primary hover:bg-sidebar-accent/50 rounded-lg transition-colors"
+                  style={{ minWidth: '40px', minHeight: '40px' }}
+                >
+                  <LogOut className="w-5 h-5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="ml-2">
+                <p>Sign Out</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        ) : (
+          <div className="flex items-center relative" style={{ minHeight: '40px' }}>
+            <button
+              onClick={handleSignOut}
+              className="flex items-center justify-center text-sidebar-foreground hover:text-sidebar-primary hover:bg-sidebar-accent/50 rounded-lg transition-colors"
+              style={{ 
+                position: 'absolute',
+                left: '6px',
+                width: '40px',
+                height: '40px',
+                minWidth: '40px'
+              }}
+            >
+              <LogOut className="w-5 h-5" />
+            </button>
+            <p 
+              className="text-sidebar-foreground text-sm font-medium truncate ml-16 opacity-100 transition-opacity duration-300"
+              style={{ 
+                fontFamily: 'Inter, system-ui, sans-serif',
+                fontSize: '15px'
+              }}
+            >
+              {getUserDisplayName()}
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

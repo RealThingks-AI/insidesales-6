@@ -1,4 +1,3 @@
-
 import type { Config } from "tailwindcss";
 
 export default {
@@ -63,25 +62,23 @@ export default {
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
 				},
-				// CRM specific colors
-				success: {
-					DEFAULT: 'hsl(var(--success))',
-					foreground: 'hsl(var(--success-foreground))'
-				},
-				warning: {
-					DEFAULT: 'hsl(var(--warning))',
-					foreground: 'hsl(var(--warning-foreground))'
-				},
-				info: {
-					DEFAULT: 'hsl(var(--info))',
-					foreground: 'hsl(var(--info-foreground))'
-				},
-				chart: {
-					'1': 'hsl(var(--chart-1))',
-					'2': 'hsl(var(--chart-2))',
-					'3': 'hsl(var(--chart-3))',
-					'4': 'hsl(var(--chart-4))',
-					'5': 'hsl(var(--chart-5))'
+				stage: {
+					lead: 'hsl(var(--stage-lead))',
+					'lead-foreground': 'hsl(var(--stage-lead-foreground))',
+					discussions: 'hsl(var(--stage-discussions))',
+					'discussions-foreground': 'hsl(var(--stage-discussions-foreground))',
+					qualified: 'hsl(var(--stage-qualified))',
+					'qualified-foreground': 'hsl(var(--stage-qualified-foreground))',
+					rfq: 'hsl(var(--stage-rfq))',
+					'rfq-foreground': 'hsl(var(--stage-rfq-foreground))',
+					offered: 'hsl(var(--stage-offered))',
+					'offered-foreground': 'hsl(var(--stage-offered-foreground))',
+					won: 'hsl(var(--stage-won))',
+					'won-foreground': 'hsl(var(--stage-won-foreground))',
+					lost: 'hsl(var(--stage-lost))',
+					'lost-foreground': 'hsl(var(--stage-lost-foreground))',
+					dropped: 'hsl(var(--stage-dropped))',
+					'dropped-foreground': 'hsl(var(--stage-dropped-foreground))'
 				}
 			},
 			borderRadius: {
@@ -105,14 +102,33 @@ export default {
 					to: {
 						height: '0'
 					}
+				},
+				'fade-in': {
+					'0%': {
+						opacity: '0',
+						transform: 'translateY(10px)'
+					},
+					'100%': {
+						opacity: '1',
+						transform: 'translateY(0)'
+					}
+				},
+				'slide-up': {
+					'0%': {
+						opacity: '0',
+						transform: 'translateY(20px)'
+					},
+					'100%': {
+						opacity: '1',
+						transform: 'translateY(0)'
+					}
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
-			},
-			fontFamily: {
-				sans: ['Inter', 'system-ui', 'sans-serif'],
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'fade-in': 'fade-in 0.3s ease-out',
+				'slide-up': 'slide-up 0.3s ease-out'
 			}
 		}
 	},

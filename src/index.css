@@ -1,13 +1,14 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* CRM Design System - Professional and Modern */
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
 
 @layer base {
   :root {
-    --background: 240 10% 98%;
+    --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
 
     --card: 0 0% 100%;
@@ -16,99 +17,139 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    /* Professional CRM Blue Palette */
-    --primary: 214 100% 50%;
+    /* Light Blue theme with soft accents */
+    --primary: 204 94% 50%;
     --primary-foreground: 0 0% 100%;
+    --primary-variant: 204 94% 45%;
 
-    --secondary: 214 32% 96%;
-    --secondary-foreground: 214 100% 25%;
+    --secondary: 204 94% 95%;
+    --secondary-foreground: 204 100% 15%;
 
-    --muted: 214 20% 95%;
-    --muted-foreground: 214 15% 55%;
+    --muted: 204 100% 97%;
+    --muted-foreground: 204 15% 45%;
 
-    --accent: 214 50% 90%;
-    --accent-foreground: 214 100% 30%;
+    --accent: 204 100% 93%;
+    --accent-foreground: 204 100% 15%;
 
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive: 0 84.2% 55%;
+    --destructive-foreground: 210 40% 98%;
+    
+    --success: 142 71% 45%;
+    --success-foreground: 210 40% 98%;
+    
+    --warning: 48 96% 53%;
+    --warning-foreground: 222.2 47.4% 11.2%;
 
-    --border: 214 20% 90%;
-    --input: 214 20% 90%;
-    --ring: 214 100% 50%;
+    --border: 204 100% 90%;
+    --input: 204 100% 90%;
+    --ring: 204 94% 50%;
 
     --radius: 0.75rem;
 
-    /* Sidebar colors */
-    --sidebar-background: 214 40% 8%;
-    --sidebar-foreground: 214 20% 80%;
-    --sidebar-primary: 214 100% 50%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 214 30% 15%;
-    --sidebar-accent-foreground: 214 20% 90%;
-    --sidebar-border: 214 30% 20%;
-    --sidebar-ring: 214 100% 50%;
+    /* Stage Colors */
+    --stage-lead: 239 84% 85%;
+    --stage-lead-foreground: 239 84% 25%;
+    --stage-discussions: 180 84% 85%;
+    --stage-discussions-foreground: 180 84% 25%;
+    --stage-qualified: 188 95% 85%;
+    --stage-qualified-foreground: 188 95% 25%;
+    --stage-rfq: 204 30% 85%;
+    --stage-rfq-foreground: 204 30% 25%;
+    --stage-offered: 25 95% 85%;
+    --stage-offered-foreground: 25 95% 25%;
+    --stage-won: 142 71% 85%;
+    --stage-won-foreground: 142 71% 25%;
+    --stage-lost: 0 84% 85%;
+    --stage-lost-foreground: 0 84% 25%;
+    --stage-dropped: 0 0% 85%;
+    --stage-dropped-foreground: 0 0% 25%;
 
-    /* CRM Status Colors */
-    --success: 142 76% 36%;
-    --success-foreground: 0 0% 100%;
-    --warning: 38 92% 50%;
-    --warning-foreground: 38 92% 10%;
-    --info: 199 89% 48%;
-    --info-foreground: 0 0% 100%;
+    /* Light Blue Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(204 94% 50%), hsl(204 94% 55%));
+    --gradient-header: linear-gradient(90deg, hsl(204 94% 50%), hsl(204 94% 45%));
+    --gradient-subtle: linear-gradient(180deg, hsl(204 100% 98%), hsl(204 100% 95%));
+    
+    /* Light Blue Shadows */
+    --shadow-sm: 0 1px 2px 0 hsl(204 94% 50% / 0.1);
+    --shadow-md: 0 4px 6px -1px hsl(204 94% 50% / 0.15), 0 2px 4px -1px hsl(204 94% 50% / 0.1);
+    --shadow-lg: 0 10px 15px -3px hsl(204 94% 50% / 0.15), 0 4px 6px -2px hsl(204 94% 50% / 0.1);
 
-    /* Chart Colors */
-    --chart-1: 214 100% 50%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 38 92% 50%;
-    --chart-4: 280 87% 65%;
-    --chart-5: 340 82% 52%;
-
-    /* Pipeline Stage Colors */
-    --pipeline-lead: 214 100% 50%;
-    --pipeline-qualified: 199 89% 48%;
-    --pipeline-proposal: 38 92% 50%;
-    --pipeline-negotiation: 280 87% 65%;
-    --pipeline-won: 142 76% 36%;
-    --pipeline-lost: 0 84% 60%;
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
   .dark {
-    --background: 214 40% 8%;
-    --foreground: 214 20% 90%;
+    /* Dark theme using tested Tailwind palette */
+    --background: 222.2 84% 5.9%; /* #0f172a - slate-900 */
+    --foreground: 210 40% 98%; /* #f8fafc - slate-50 */
 
-    --card: 214 35% 10%;
-    --card-foreground: 214 20% 90%;
+    --card: 215 28% 17%; /* #1e293b - slate-800 */
+    --card-foreground: 210 40% 98%; /* #f8fafc - slate-50 */
 
-    --popover: 214 35% 10%;
-    --popover-foreground: 214 20% 90%;
+    --popover: 215 28% 17%; /* #1e293b - slate-800 */
+    --popover-foreground: 210 40% 98%; /* #f8fafc - slate-50 */
 
-    --primary: 214 100% 50%;
-    --primary-foreground: 214 40% 8%;
+    --primary: 217.2 91.2% 59.8%; /* #3b82f6 - blue-500 */
+    --primary-foreground: 210 40% 98%; /* #f8fafc - slate-50 */
+    --primary-variant: 221.2 83.2% 53.3%; /* #2563eb - blue-600 */
 
-    --secondary: 214 30% 15%;
-    --secondary-foreground: 214 20% 80%;
+    --secondary: 215 25% 27%; /* #334155 - slate-700 */
+    --secondary-foreground: 210 40% 98%; /* #f8fafc - slate-50 */
 
-    --muted: 214 30% 15%;
-    --muted-foreground: 214 15% 65%;
+    --muted: 215 28% 17%; /* #1e293b - slate-800 */
+    --muted-foreground: 215 16% 47%; /* #64748b - slate-500 */
 
-    --accent: 214 30% 20%;
-    --accent-foreground: 214 20% 90%;
+    --accent: 217.2 91.2% 59.8%; /* #3b82f6 - blue-500 */
+    --accent-foreground: 210 40% 98%; /* #f8fafc - slate-50 */
 
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 50%;
+    --destructive-foreground: 210 40% 98%;
+    
+    --success: 142 71% 55%;
+    --success-foreground: 210 40% 98%;
+    
+    --warning: 48 96% 63%;
+    --warning-foreground: 222.2 47.4% 11.2%;
 
-    --border: 214 30% 20%;
-    --input: 214 30% 20%;
-    --ring: 214 100% 50%;
+    --border: 215 20% 35%; /* #475569 - slate-600 */
+    --input: 215 28% 17%; /* #1e293b - slate-800 */
+    --ring: 217.2 91.2% 59.8%; /* #3b82f6 - blue-500 */
+    
+    /* Enhanced sidebar colors for dark theme */
+    --sidebar-background: 215 28% 17%; /* #1e293b - slate-800 */
+    --sidebar-foreground: 210 40% 98%; /* #f8fafc - slate-50 */
+    --sidebar-primary: 217.2 91.2% 59.8%; /* #3b82f6 - blue-500 */
+    --sidebar-primary-foreground: 210 40% 98%; /* #f8fafc - slate-50 */
+    --sidebar-accent: 215 25% 27%; /* #334155 - slate-700 */
+    --sidebar-accent-foreground: 210 40% 98%; /* #f8fafc - slate-50 */
+    --sidebar-border: 215 20% 35%; /* #475569 - slate-600 */
+    --sidebar-ring: 217.2 91.2% 59.8%; /* #3b82f6 - blue-500 */
+  }
+}
 
-    --sidebar-background: 214 50% 5%;
-    --sidebar-foreground: 214 20% 80%;
-    --sidebar-primary: 214 100% 50%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 214 35% 10%;
-    --sidebar-accent-foreground: 214 20% 90%;
-    --sidebar-border: 214 30% 15%;
-    --sidebar-ring: 214 100% 50%;
+/* Animation utilities */
+.hover-scale {
+  @apply transition-transform duration-200 hover:scale-105;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -119,74 +160,65 @@
 
   body {
     @apply bg-background text-foreground font-sans;
-  }
-
-  h1, h2, h3, h4, h5, h6 {
-    @apply font-semibold text-foreground;
+    font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   }
 }
 
 @layer components {
-  /* CRM Specific Components */
-  .crm-card {
-    @apply bg-card border border-border rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200;
+  .stage-card {
+    @apply rounded-2xl shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-[1.02];
   }
-
-  .crm-metric {
-    @apply text-2xl font-bold text-foreground;
+  
+  .stage-header {
+    @apply rounded-t-2xl p-4 font-semibold text-white;
+    background: var(--gradient-header);
   }
-
-  .crm-metric-label {
-    @apply text-sm font-medium text-muted-foreground uppercase tracking-wide;
-  }
-
-  .pipeline-stage {
-    @apply bg-muted/50 border border-border rounded-lg p-4 min-h-[200px];
-  }
-
+  
   .deal-card {
-    @apply bg-card border border-border rounded-lg p-3 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer;
+    @apply bg-card rounded-xl shadow-sm hover:shadow-md transition-all duration-200 border border-border/50;
+  }
+  
+  .btn-primary {
+    @apply bg-primary text-primary-foreground rounded-lg px-4 py-2 font-medium transition-all duration-200 hover:bg-primary/90 hover:shadow-md;
+  }
+  
+  .btn-secondary {
+    @apply bg-secondary text-secondary-foreground rounded-lg px-4 py-2 font-medium transition-all duration-200 hover:bg-secondary/80;
   }
 
-  /* Status Badges */
-  .status-success {
-    @apply bg-success/10 text-success border border-success/20 rounded-full px-2 py-1 text-xs font-medium;
+  /* Enhanced utility classes for consistency */
+  .card-hover {
+    @apply hover:shadow-md hover:scale-[1.01] transition-all duration-200;
   }
 
-  .status-warning {
-    @apply bg-warning/10 text-warning border border-warning/20 rounded-full px-2 py-1 text-xs font-medium;
+  .input-focus {
+    @apply focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all;
   }
 
-  .status-info {
-    @apply bg-info/10 text-info border border-info/20 rounded-full px-2 py-1 text-xs font-medium;
+  .button-scale {
+    @apply hover:scale-105 active:scale-95 transition-transform duration-150;
   }
 
-  .status-error {
-    @apply bg-destructive/10 text-destructive border border-destructive/20 rounded-full px-2 py-1 text-xs font-medium;
+  /* Compact mobile utilities */
+  .compact-mobile {
+    @apply text-sm sm:text-base px-2 sm:px-4 py-1 sm:py-2;
   }
 
-  /* Animation utilities */
-  .fade-in {
-    animation: fadeIn 0.3s ease-in-out;
+  .text-hierarchy {
+    @apply font-bold text-foreground;
   }
 
-  .slide-up {
-    animation: slideUp 0.3s ease-out;
+  .text-sub {
+    @apply text-sm text-muted-foreground font-medium;
   }
 
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+  /* Responsive spacing */
+  .spacing-consistent {
+    @apply p-4 lg:p-6 gap-4 lg:gap-6;
   }
 
-  @keyframes slideUp {
-    from { 
-      opacity: 0; 
-      transform: translateY(10px); 
-    }
-    to { 
-      opacity: 1; 
-      transform: translateY(0); 
-    }
+  /* Light blue hover effects */
+  .hover-light-blue {
+    @apply hover:bg-primary/5 hover:border-primary/20 transition-all duration-200;
   }
 }

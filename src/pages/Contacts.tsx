@@ -1,178 +1,175 @@
-
-import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ContactTable } from "@/components/ContactTable";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Settings, Download, Upload, Plus, Trash2 } from "lucide-react";
+import { useState, useRef } from "react";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Mail, Phone, Building2, Globe, MapPin } from "lucide-react";
-import { toast } from "sonner";
-
-interface Contact {
-  id: string;
-  contact_name: string;
-  company_name: string;
-  position: string;
-  email: string;
-  phone_no: string;
-  industry: string;
-  region: string;
-  contact_source: string;
-  created_time: string;
-}
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useSimpleContactsImportExport } from "@/hooks/useSimpleContactsImportExport";
+import { useCRUDAudit } from "@/hooks/useCRUDAudit";
 
 const Contacts = () => {
-  const [contacts, setContacts] = useState<Contact[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
+  const { toast } = useToast();
+  const { logBulkDelete } = useCRUDAudit();
+  const [showColumnCustomizer, setShowColumnCustomizer] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    fetchContacts();
-  }, []);
+  console.log('Contacts page: Rendering with refreshTrigger:', refreshTrigger);
 
-  const fetchContacts = async () => {
+  const onRefresh = () => {
+    console.log('Contacts page: Triggering refresh...');
+    setRefreshTrigger(prev => {
+      const newTrigger = prev + 1;
+      console.log('Contacts page: Refresh trigger updated from', prev, 'to', newTrigger);
+      return newTrigger;
+    });
+  };
+
+  const { handleImport, handleExport, isImporting } = useSimpleContactsImportExport(onRefresh);
+
+  const handleImportClick = () => {
+    console.log('Contacts page: Import clicked, opening file dialog');
+    fileInputRef.current?.click();
+  };
+
+  const handleImportCSV = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    console.log('Contacts page: File selected for import:', file?.name);
+    
+    if (!file) {
+      console.log('Contacts page: No file selected, returning');
+      return;
+    }
+
+    console.log('Contacts page: Starting CSV import process with file:', {
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      lastModified: new Date(file.lastModified).toISOString()
+    });
+    
     try {
-      const { data, error } = await supabase
-        .from('contacts')
-        .select('*')
-        .order('created_time', { ascending: false });
-
-      if (error) throw error;
-      setContacts(data || []);
-    } catch (error) {
-      console.error('Error fetching contacts:', error);
-      toast.error("Failed to fetch contacts");
-    } finally {
-      setLoading(false);
+      console.log('Contacts page: Calling handleImport from hook');
+      await handleImport(file);
+      
+      // Reset the file input to allow reimporting the same file
+      event.target.value = '';
+      console.log('Contacts page: File input reset');
+      
+    } catch (error: any) {
+      console.error('Contacts page: Import error caught:', error);
+      
+      // Reset file input on error too
+      event.target.value = '';
     }
   };
 
-  const getSourceColor = (source: string) => {
-    const sourceColors = {
-      'Website': 'status-info',
-      'Referral': 'status-success',
-      'Social Media': 'status-warning',
-      'Email Campaign': 'bg-chart-4 text-white',
-      'Cold Outreach': 'bg-muted'
-    };
-    return sourceColors[source as keyof typeof sourceColors] || 'bg-muted';
+  const handleBulkDelete = async () => {
+    if (selectedContacts.length === 0) return;
+
+    try {
+      const { error } = await supabase
+        .from('contacts')
+        .delete()
+        .in('id', selectedContacts);
+
+      if (error) throw error;
+
+      // Log bulk delete operation
+      await logBulkDelete('contacts', selectedContacts.length, selectedContacts);
+
+      toast({
+        title: "Success",
+        description: `${selectedContacts.length} contacts deleted successfully`,
+      });
+      
+      setSelectedContacts([]);
+      setRefreshTrigger(prev => prev + 1);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete contacts",
+        variant: "destructive",
+      });
+    }
   };
 
-  const filteredContacts = contacts.filter(contact =>
-    contact.contact_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    contact.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    contact.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    contact.position?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">Contacts</h1>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[...Array(6)].map((_, i) => (
-            <Card key={i} className="animate-pulse">
-              <CardContent className="p-6 space-y-4">
-                <div className="h-4 bg-muted rounded w-3/4"></div>
-                <div className="h-3 bg-muted rounded w-1/2"></div>
-                <div className="h-3 bg-muted rounded w-2/3"></div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-6 slide-up">
+    <div className="p-6 space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Contacts</h1>
-          <p className="text-muted-foreground">Your professional network and customer database</p>
+          <h1 className="text-3xl font-bold text-foreground mb-2">Contacts</h1>
+          <p className="text-muted-foreground"> </p>
         </div>
-        <Button className="bg-primary hover:bg-primary/90">
-          <Plus className="w-4 h-4 mr-2" />
-          Add Contact
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="default"
+            onClick={() => setShowColumnCustomizer(true)}
+            size="icon"
+          >
+            <Settings className="w-4 h-4" />
+          </Button>
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="default" disabled={isImporting}>
+                <Download className="w-4 h-4 mr-2" />
+                {isImporting ? 'Importing...' : 'Action'}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={handleImportClick} disabled={isImporting}>
+                <Upload className="w-4 h-4 mr-2" />
+                Import CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExport}>
+                <Download className="w-4 h-4 mr-2" />
+                Export CSV
+              </DropdownMenuItem>
+              {selectedContacts.length > 0 && (
+                <DropdownMenuItem 
+                  onClick={handleBulkDelete}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete Selected ({selectedContacts.length})
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <Button onClick={() => setShowModal(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add Contact
+          </Button>
+        </div>
       </div>
 
-      {/* Search */}
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-          <Input
-            placeholder="Search contacts..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        <Badge variant="secondary">{filteredContacts.length} contacts</Badge>
-      </div>
+      {/* Hidden file input for CSV import */}
+      <Input
+        ref={fileInputRef}
+        type="file"
+        accept=".csv"
+        onChange={handleImportCSV}
+        className="hidden"
+        disabled={isImporting}
+      />
 
-      {/* Contacts Grid */}
-      {filteredContacts.length === 0 ? (
-        <Card className="crm-card">
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Building2 className="w-12 h-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold text-foreground mb-2">No contacts found</h3>
-            <p className="text-muted-foreground text-center">
-              {searchTerm ? "Try adjusting your search terms" : "Get started by adding your first contact"}
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredContacts.map((contact) => (
-            <Card key={contact.id} className="deal-card">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-lg font-semibold">{contact.contact_name}</CardTitle>
-                    <CardDescription>
-                      {contact.position} {contact.company_name && `at ${contact.company_name}`}
-                    </CardDescription>
-                  </div>
-                  {contact.contact_source && (
-                    <Badge className={getSourceColor(contact.contact_source)}>
-                      {contact.contact_source}
-                    </Badge>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {contact.email && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Mail className="w-4 h-4" />
-                    <span className="truncate">{contact.email}</span>
-                  </div>
-                )}
-                {contact.phone_no && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Phone className="w-4 h-4" />
-                    <span>{contact.phone_no}</span>
-                  </div>
-                )}
-                {contact.industry && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Building2 className="w-4 h-4" />
-                    <span>{contact.industry}</span>
-                  </div>
-                )}
-                {contact.region && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <MapPin className="w-4 h-4" />
-                    <span>{contact.region}</span>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+      {/* Contact Table */}
+      <ContactTable 
+        showColumnCustomizer={showColumnCustomizer}
+        setShowColumnCustomizer={setShowColumnCustomizer}
+        showModal={showModal}
+        setShowModal={setShowModal}
+        selectedContacts={selectedContacts}
+        setSelectedContacts={setSelectedContacts}
+        refreshTrigger={refreshTrigger}
+      />
     </div>
   );
 };
