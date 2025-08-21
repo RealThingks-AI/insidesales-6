@@ -7,7 +7,7 @@ import { GenericCSVProcessor } from './import-export/genericCSVProcessor';
 import { GenericCSVExporter } from './import-export/genericCSVExporter';
 import { getExportFilename } from '@/utils/exportUtils';
 
-// Leads field order
+// Leads field order - updated to match actual database schema
 const LEADS_EXPORT_FIELDS = [
   'id', 'lead_name', 'company_name', 'position', 'email', 'phone_no',
   'linkedin', 'website', 'contact_source', 'lead_status', 'industry', 'country',
@@ -39,7 +39,7 @@ export const useSimpleLeadsImportExport = (onRefresh: () => void) => {
         tableName: 'leads',
         userId: user.id,
         onProgress: (processed, total) => {
-          console.log(`Progress: ${processed}/${total}`);
+          console.log(`Import progress: ${processed}/${total}`);
         }
       });
 
@@ -52,7 +52,7 @@ export const useSimpleLeadsImportExport = (onRefresh: () => void) => {
           description: message,
         });
         
-        // Trigger real-time refresh
+        // Trigger refresh
         onRefresh();
         
         // Dispatch custom event for real-time updates
@@ -81,12 +81,17 @@ export const useSimpleLeadsImportExport = (onRefresh: () => void) => {
 
   const handleExport = async () => {
     try {
+      console.log('Starting leads export...');
+      
       const { data: leads, error } = await supabase
         .from('leads')
         .select('*')
         .order('created_time', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Export query error:', error);
+        throw error;
+      }
 
       if (!leads || leads.length === 0) {
         toast({
@@ -97,13 +102,15 @@ export const useSimpleLeadsImportExport = (onRefresh: () => void) => {
         return;
       }
 
+      console.log(`Exporting ${leads.length} leads`);
+      
       const filename = getExportFilename('leads', 'all');
       const exporter = new GenericCSVExporter();
       await exporter.exportToCSV(leads, filename, LEADS_EXPORT_FIELDS);
 
       toast({
         title: "Export Successful",
-        description: `${leads.length} leads exported`,
+        description: `${leads.length} leads exported successfully`,
       });
 
     } catch (error: any) {
