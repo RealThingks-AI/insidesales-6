@@ -6,9 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Download, Search, AlertTriangle, Activity, FileText, Filter } from "lucide-react";
+import { Download, Search, AlertTriangle, Activity, FileText, Filter, Undo } from "lucide-react";
 import { format } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RevertConfirmDialog } from "@/components/feeds/RevertConfirmDialog";
 
 interface AuditLog {
   id: string;
@@ -21,6 +22,8 @@ interface AuditLog {
   created_at: string;
 }
 
+type ValidTableName = 'contacts' | 'deals' | 'leads';
+
 const AuditLogsSettings = () => {
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [filteredLogs, setFilteredLogs] = useState<AuditLog[]>([]);
@@ -28,6 +31,9 @@ const AuditLogsSettings = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [actionFilter, setActionFilter] = useState('all');
   const [userNames, setUserNames] = useState<Record<string, string>>({});
+  const [revertDialogOpen, setRevertDialogOpen] = useState(false);
+  const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
+  const [reverting, setReverting] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -47,15 +53,21 @@ const AuditLogsSettings = () => {
   const fetchAuditLogs = async () => {
     try {
       setLoading(true);
+      console.log('Fetching audit logs...');
+      
       const { data, error } = await supabase
         .from('security_audit_log')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(1000);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching audit logs:', error);
+        throw error;
+      }
 
-      // Transform the data to match our AuditLog interface
+      console.log('Fetched audit logs:', data?.length || 0, 'records');
+
       const transformedLogs: AuditLog[] = (data || []).map(log => ({
         id: log.id,
         user_id: log.user_id || '',
@@ -72,7 +84,7 @@ const AuditLogsSettings = () => {
       console.error('Error fetching audit logs:', error);
       toast({
         title: "Error",
-        description: "Failed to fetch audit logs",
+        description: "Failed to fetch audit logs: " + (error.message || 'Unknown error'),
         variant: "destructive",
       });
     } finally {
@@ -82,19 +94,29 @@ const AuditLogsSettings = () => {
 
   const fetchUserNames = async () => {
     try {
-      // Get all unique user IDs from logs
-      const uniqueUserIds = Array.from(new Set(
-        logs.map(log => log.user_id).filter(Boolean)
-      ));
-
+      const uniqueUserIds = Array.from(new Set(logs.map(log => log.user_id).filter(Boolean)));
       if (uniqueUserIds.length === 0) return;
 
-      const { data, error } = await supabase.functions.invoke('fetch-user-display-names', {
-        body: { userIds: uniqueUserIds }
+      // Try to fetch display names from edge function first
+      try {
+        const { data, error } = await supabase.functions.invoke('fetch-user-display-names', {
+          body: { userIds: uniqueUserIds }
+        });
+
+        if (!error && data?.userDisplayNames) {
+          setUserNames(data.userDisplayNames);
+          return;
+        }
+      } catch (edgeFunctionError) {
+        console.log('Edge function not available, using fallback method');
+      }
+
+      // Fallback: create display names from user IDs
+      const fallbackNames: Record<string, string> = {};
+      uniqueUserIds.forEach((userId, index) => {
+        fallbackNames[userId] = `User ${index + 1}`;
       });
-      
-      if (error) throw error;
-      setUserNames(data?.userDisplayNames || {});
+      setUserNames(fallbackNames);
     } catch (error) {
       console.error('Error fetching user names:', error);
     }
@@ -103,7 +125,6 @@ const AuditLogsSettings = () => {
   const filterLogs = () => {
     let filtered = logs;
 
-    // Filter by search term
     if (searchTerm) {
       filtered = filtered.filter(log => 
         log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -113,110 +134,91 @@ const AuditLogsSettings = () => {
       );
     }
 
-    // Filter by action type
     if (actionFilter !== 'all') {
       filtered = filtered.filter(log => {
         switch (actionFilter) {
           case 'user_management':
-            return ['USER_CREATED', 'USER_DELETED', 'USER_ACTIVATED', 'USER_DEACTIVATED', 'ROLE_CHANGE', 'PASSWORD_RESET', 'ADMIN_ACTION'].includes(log.action) ||
-                   log.action.includes('USER_') || 
-                   log.action.includes('ROLE_') ||
-                   log.resource_type === 'user_roles' ||
-                   log.resource_type === 'profiles';
+            return ['USER_CREATED', 'USER_DELETED', 'USER_ACTIVATED', 'USER_DEACTIVATED', 'ROLE_CHANGE', 'PASSWORD_RESET', 'ADMIN_ACTION', 'USER_ROLE_UPDATED', 'USER_STATUS_CHANGED', 'NEW_USER_REGISTERED'].includes(log.action) ||
+              log.action.includes('USER_') || log.action.includes('ROLE_') ||
+              log.resource_type === 'user_roles' || log.resource_type === 'profiles' || log.resource_type === 'user_management';
           case 'record_changes':
             return ['CREATE', 'UPDATE', 'DELETE', 'BULK_CREATE', 'BULK_UPDATE', 'BULK_DELETE'].includes(log.action) ||
-                   ['contacts', 'deals', 'leads'].includes(log.resource_type);
+              ['contacts', 'deals', 'leads'].includes(log.resource_type);
           case 'authentication':
-            return log.action.includes('SESSION_') || 
-                   log.action.includes('LOGIN') || 
-                   log.action.includes('LOGOUT') || 
-                   log.action.includes('AUTH') ||
-                   log.resource_type === 'auth';
+            return log.action.includes('SESSION_') || log.action.includes('LOGIN') || log.action.includes('LOGOUT') || log.action.includes('AUTH') || log.resource_type === 'auth';
           case 'export':
-            return log.action.includes('EXPORT') || log.action.includes('DATA_EXPORT');
+            return log.action.includes('EXPORT') || log.action.includes('DATA_EXPORT') || log.action.includes('IMPORT') || log.action.includes('DATA_IMPORT') || log.resource_type.includes('export') || log.resource_type.includes('import');
           default:
             return true;
         }
       });
     }
 
-    // Apply authentication log deduplication only when authentication filter is active
-    if (actionFilter === 'authentication') {
+    if (actionFilter === 'authentication' || actionFilter === 'all') {
       filtered = deduplicateAuthLogs(filtered);
     }
 
     setFilteredLogs(filtered);
   };
 
-  // Enhanced deduplication for authentication logs - show only first login and last logout per day per user
-  const deduplicateAuthLogs = (authLogs: AuditLog[]) => {
-    if (authLogs.length === 0) return authLogs;
-
-    // Filter out noisy session events first
-    const meaningfulLogs = authLogs.filter(log => 
-      !log.action.includes('SESSION_ACTIVE') && 
-      !log.action.includes('SESSION_INACTIVE') &&
-      !log.action.includes('SESSION_START') &&
-      !log.action.includes('SESSION_END')
+  const deduplicateAuthLogs = (allLogs: AuditLog[]) => {
+    const authLogs = allLogs.filter(log => 
+      log.action.includes('SESSION_') || log.action.includes('LOGIN') || log.action.includes('LOGOUT') || log.resource_type === 'auth'
+    );
+    const nonAuthLogs = allLogs.filter(log => 
+      !(log.action.includes('SESSION_') || log.action.includes('LOGIN') || log.action.includes('LOGOUT') || log.resource_type === 'auth')
     );
 
-    const uniqueLogs: AuditLog[] = [];
-    const userDailyMap = new Map<string, {
-      date: string;
-      logins: AuditLog[];
-      logouts: AuditLog[];
-      others: AuditLog[];
-    }>();
+    if (authLogs.length === 0) return allLogs;
 
-    // Group logs by user and day
-    meaningfulLogs.forEach(log => {
+    const meaningfulAuthLogs = authLogs.filter(log => 
+      !log.action.includes('SESSION_ACTIVE') && !log.action.includes('SESSION_INACTIVE') && 
+      !log.action.includes('SESSION_START') && !log.action.includes('SESSION_END')
+    );
+
+    const limitedAuthLogs: AuditLog[] = [];
+    const userDailyMap = new Map<string, { date: string; logins: AuditLog[]; logouts: AuditLog[]; others: AuditLog[]; }>();
+
+    meaningfulAuthLogs.forEach(log => {
       const userId = log.user_id || 'system';
       const logDate = format(new Date(log.created_at), 'yyyy-MM-dd');
       const dailyKey = `${userId}-${logDate}`;
-      
+
       if (!userDailyMap.has(dailyKey)) {
-        userDailyMap.set(dailyKey, {
-          date: logDate,
-          logins: [],
-          logouts: [],
-          others: []
-        });
+        userDailyMap.set(dailyKey, { date: logDate, logins: [], logouts: [], others: [] });
       }
-      
+
       const dailyData = userDailyMap.get(dailyKey)!;
-      
       if (log.action.includes('LOGIN')) {
         dailyData.logins.push(log);
       } else if (log.action.includes('LOGOUT')) {
         dailyData.logouts.push(log);
       } else {
-        // Password resets, activations, etc.
         dailyData.others.push(log);
       }
     });
 
-    // Process each user's daily activity
-    userDailyMap.forEach((dailyData) => {
-      // Sort by timestamp
+    userDailyMap.forEach(dailyData => {
       dailyData.logins.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
       dailyData.logouts.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
-      // Add first login of the day
-      if (dailyData.logins.length > 0) {
-        uniqueLogs.push(dailyData.logins[0]);
+      let eventCount = 0;
+
+      if (dailyData.logins.length > 0 && eventCount < 2) {
+        limitedAuthLogs.push(dailyData.logins[0]);
+        eventCount++;
       }
 
-      // Add last logout of the day (only if there were multiple sessions)
-      if (dailyData.logouts.length > 0) {
-        uniqueLogs.push(dailyData.logouts[dailyData.logouts.length - 1]);
+      if (dailyData.logouts.length > 0 && eventCount < 2) {
+        limitedAuthLogs.push(dailyData.logouts[dailyData.logouts.length - 1]);
+        eventCount++;
       }
 
-      // Add all other important events
-      uniqueLogs.push(...dailyData.others);
+      limitedAuthLogs.push(...dailyData.others);
     });
 
-    // Sort final result by timestamp (newest first)
-    return uniqueLogs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    const combinedLogs = [...limitedAuthLogs, ...nonAuthLogs];
+    return combinedLogs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   };
 
   const exportAuditTrail = async () => {
@@ -246,7 +248,7 @@ const AuditLogsSettings = () => {
 
       toast({
         title: "Success",
-        description: "Audit trail exported successfully",
+        description: "Audit trail exported successfully"
       });
     } catch (error) {
       toast({
@@ -257,30 +259,108 @@ const AuditLogsSettings = () => {
     }
   };
 
+  const canRevert = (log: AuditLog) => {
+    // Only allow reverting CREATE, UPDATE, DELETE actions on data tables
+    return ['CREATE', 'UPDATE', 'DELETE'].includes(log.action) && 
+           ['contacts', 'deals', 'leads'].includes(log.resource_type) &&
+           log.resource_id &&
+           log.details;
+  };
+
+  const isValidTableName = (tableName: string): tableName is ValidTableName => {
+    return ['contacts', 'deals', 'leads'].includes(tableName);
+  };
+
+  const handleRevertClick = (log: AuditLog) => {
+    setSelectedLog(log);
+    setRevertDialogOpen(true);
+  };
+
+  const revertAction = async () => {
+    if (!selectedLog) return;
+
+    setReverting(true);
+    try {
+      const { action, resource_type, resource_id, details } = selectedLog;
+
+      // Validate that this is a supported table
+      if (!isValidTableName(resource_type)) {
+        throw new Error(`Reverting ${resource_type} records is not supported`);
+      }
+
+      if (action === 'DELETE' && details?.deleted_data) {
+        // Restore deleted record
+        const { error } = await supabase
+          .from(resource_type)
+          .insert([details.deleted_data]);
+
+        if (error) throw error;
+
+        toast({
+          title: "Success",
+          description: `Deleted ${resource_type} record has been restored`,
+        });
+      } else if (action === 'UPDATE' && details?.old_data) {
+        // Restore to old data
+        const { error } = await supabase
+          .from(resource_type)
+          .update(details.old_data)
+          .eq('id', resource_id);
+
+        if (error) throw error;
+
+        toast({
+          title: "Success",
+          description: `${resource_type} record has been reverted to previous state`,
+        });
+      } else if (action === 'CREATE') {
+        // Delete the created record
+        const { error } = await supabase
+          .from(resource_type)
+          .delete()
+          .eq('id', resource_id);
+
+        if (error) throw error;
+
+        toast({
+          title: "Success",
+          description: `Created ${resource_type} record has been removed`,
+        });
+      }
+
+      // Refresh logs after successful revert
+      await fetchAuditLogs();
+    } catch (error: any) {
+      console.error('Error reverting action:', error);
+      toast({
+        title: "Error",
+        description: `Failed to revert action: ${error.message}`,
+        variant: "destructive",
+      });
+    } finally {
+      setReverting(false);
+      setRevertDialogOpen(false);
+      setSelectedLog(null);
+    }
+  };
+
   const getActionIcon = (action: string) => {
-    // CRUD Operations
     if (action === 'CREATE' || action === 'BULK_CREATE') return <Activity className="h-4 w-4 text-green-600" />;
     if (action === 'UPDATE' || action === 'BULK_UPDATE') return <FileText className="h-4 w-4 text-blue-600" />;
     if (action === 'DELETE' || action === 'BULK_DELETE') return <AlertTriangle className="h-4 w-4 text-red-600" />;
-    // User Management
     if (action.includes('USER')) return <Activity className="h-4 w-4" />;
-    // Data Export
     if (action.includes('DATA') || action.includes('EXPORT')) return <Download className="h-4 w-4" />;
-    // Session Management
     if (action.includes('SESSION')) return <Activity className="h-4 w-4 text-gray-500" />;
     return <AlertTriangle className="h-4 w-4" />;
   };
 
   const getActionBadgeVariant = (action: string) => {
-    // CRUD Operations
     if (action === 'CREATE' || action === 'BULK_CREATE') return 'default';
     if (action === 'UPDATE' || action === 'BULK_UPDATE') return 'secondary';
     if (action === 'DELETE' || action === 'BULK_DELETE') return 'destructive';
-    // User Management
     if (action.includes('CREATED') || action.includes('ACTIVATED')) return 'default';
     if (action.includes('DELETED') || action.includes('DEACTIVATED')) return 'destructive';
     if (action.includes('ROLE_CHANGE') || action.includes('PASSWORD_RESET')) return 'secondary';
-    // Session Management
     if (action.includes('SESSION')) return 'outline';
     return 'outline';
   };
@@ -358,7 +438,7 @@ const AuditLogsSettings = () => {
                 <SelectItem value="record_changes">Record Changes</SelectItem>
                 <SelectItem value="authentication">Authentication (Clean)</SelectItem>
                 <SelectItem value="user_management">User Management</SelectItem>
-                <SelectItem value="export">Data Export</SelectItem>
+                <SelectItem value="export">Data Import/Export</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -378,6 +458,7 @@ const AuditLogsSettings = () => {
                     <TableHead>User</TableHead>
                     <TableHead>Changes</TableHead>
                     <TableHead>Details</TableHead>
+                    <TableHead>Revert Changes</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -400,11 +481,7 @@ const AuditLogsSettings = () => {
                           <span className="font-medium">
                             {log.details?.module || getReadableResourceType(log.resource_type)}
                           </span>
-                          {log.resource_id && !isAuthLog && (
-                            <span className="text-muted-foreground text-sm block">
-                              Record: {log.resource_id.substring(0, 8)}...
-                            </span>
-                          )}
+                          {log.resource_id && !isAuthLog}
                         </TableCell>
                         <TableCell>
                           <span className="font-medium">{userName}</span>
@@ -413,14 +490,14 @@ const AuditLogsSettings = () => {
                           {!isAuthLog && log.details?.field_changes && Object.keys(log.details.field_changes).length > 0 ? (
                             <div className="space-y-1">
                               {Object.entries(log.details.field_changes).slice(0, 3).map(([field, change]: [string, any]) => (
-                                <div key={field} className="text-xs">
+                                <div key={field} className="text-sm">
                                   <span className="font-medium">{field}:</span>
                                   <span className="text-muted-foreground"> {String(change.old || 'null')} → </span>
                                   <span className="text-primary">{String(change.new || 'null')}</span>
                                 </div>
                               ))}
                               {Object.keys(log.details.field_changes).length > 3 && (
-                                <span className="text-xs text-muted-foreground">
+                                <span className="text-sm text-muted-foreground">
                                   +{Object.keys(log.details.field_changes).length - 3} more...
                                 </span>
                               )}
@@ -435,10 +512,26 @@ const AuditLogsSettings = () => {
                               <summary className="text-sm text-muted-foreground hover:text-foreground">
                                 View details
                               </summary>
-                              <pre className="text-xs mt-2 p-2 bg-muted rounded whitespace-pre-wrap">
+                              <pre className="text-sm mt-2 p-2 bg-muted rounded whitespace-pre-wrap">
                                 {JSON.stringify(log.details, null, 2)}
                               </pre>
                             </details>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {canRevert(log) ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleRevertClick(log)}
+                              disabled={reverting}
+                              className="flex items-center gap-1"
+                            >
+                              <Undo className="h-3 w-3" />
+                              Revert
+                            </Button>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">-</span>
                           )}
                         </TableCell>
                       </TableRow>
@@ -452,6 +545,9 @@ const AuditLogsSettings = () => {
                   <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                   <p className="text-muted-foreground">
                     {searchTerm || actionFilter !== 'all' ? 'No logs match your filters' : 'No audit logs found'}
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Start using the application to generate audit logs
                   </p>
                 </div>
               )}
@@ -494,6 +590,15 @@ const AuditLogsSettings = () => {
           </div>
         </CardContent>
       </Card>
+
+      <RevertConfirmDialog
+        open={revertDialogOpen}
+        onConfirm={revertAction}
+        onCancel={() => {
+          setRevertDialogOpen(false);
+          setSelectedLog(null);
+        }}
+      />
     </div>
   );
 };
