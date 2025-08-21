@@ -7,7 +7,7 @@ import { GenericCSVProcessor } from './import-export/genericCSVProcessor';
 import { GenericCSVExporter } from './import-export/genericCSVExporter';
 import { getExportFilename } from '@/utils/exportUtils';
 
-// Leads field order - updated to match actual database schema
+// Leads field order
 const LEADS_EXPORT_FIELDS = [
   'id', 'lead_name', 'company_name', 'position', 'email', 'phone_no',
   'linkedin', 'website', 'contact_source', 'lead_status', 'industry', 'country',
@@ -32,21 +32,17 @@ export const useSimpleLeadsImportExport = (onRefresh: () => void) => {
     setIsImporting(true);
     
     try {
-      console.log('Starting import process...');
       const text = await file.text();
-      console.log('File content length:', text.length);
-      
       const processor = new GenericCSVProcessor();
       
       const result = await processor.processCSV(text, {
         tableName: 'leads',
         userId: user.id,
         onProgress: (processed, total) => {
-          console.log(`Import progress: ${processed}/${total}`);
+          console.log(`Progress: ${processed}/${total}`);
         }
       });
 
-      console.log('Import result:', result);
       const { successCount, updateCount, errorCount } = result;
       const message = `Import completed: ${successCount} new, ${updateCount} updated, ${errorCount} errors`;
       
@@ -56,7 +52,7 @@ export const useSimpleLeadsImportExport = (onRefresh: () => void) => {
           description: message,
         });
         
-        // Trigger refresh
+        // Trigger real-time refresh
         onRefresh();
         
         // Dispatch custom event for real-time updates
@@ -73,21 +69,9 @@ export const useSimpleLeadsImportExport = (onRefresh: () => void) => {
 
     } catch (error: any) {
       console.error('Import error:', error);
-      
-      // Handle specific database constraint errors
-      let errorMessage = error.message || "Failed to import leads";
-      
-      if (error.message?.includes('foreign key constraint')) {
-        errorMessage = "Import failed due to data integrity constraints. Please check your data format and try again.";
-      } else if (error.message?.includes('duplicate key')) {
-        errorMessage = "Import failed due to duplicate entries. Please check for existing records and try again.";
-      } else if (error.message?.includes('violates check constraint')) {
-        errorMessage = "Import failed due to invalid data values. Please check your data format and try again.";
-      }
-      
       toast({
         title: "Import Error",
-        description: errorMessage,
+        description: error.message || "Failed to import leads",
         variant: "destructive",
       });
     } finally {
@@ -97,17 +81,12 @@ export const useSimpleLeadsImportExport = (onRefresh: () => void) => {
 
   const handleExport = async () => {
     try {
-      console.log('Starting leads export...');
-      
       const { data: leads, error } = await supabase
         .from('leads')
         .select('*')
         .order('created_time', { ascending: false });
 
-      if (error) {
-        console.error('Export query error:', error);
-        throw error;
-      }
+      if (error) throw error;
 
       if (!leads || leads.length === 0) {
         toast({
@@ -118,15 +97,13 @@ export const useSimpleLeadsImportExport = (onRefresh: () => void) => {
         return;
       }
 
-      console.log(`Exporting ${leads.length} leads`);
-      
       const filename = getExportFilename('leads', 'all');
       const exporter = new GenericCSVExporter();
       await exporter.exportToCSV(leads, filename, LEADS_EXPORT_FIELDS);
 
       toast({
         title: "Export Successful",
-        description: `${leads.length} leads exported successfully`,
+        description: `${leads.length} leads exported`,
       });
 
     } catch (error: any) {
