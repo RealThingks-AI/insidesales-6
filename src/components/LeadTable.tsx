@@ -381,21 +381,13 @@ const LeadTable = ({
 
       {showModal && (
         <LeadModal
-          isOpen={showModal}
-          onClose={() => {
-            setShowModal(false);
-            setEditingLead(null);
+          open={showModal}
+          onOpenChange={(open) => {
+            setShowModal(open);
+            if (!open) setEditingLead(null);
           }}
           lead={editingLead}
-          onLeadSaved={fetchLeads}
-        />
-      )}
-
-      {showColumnCustomizer && (
-        <LeadColumnCustomizer
-          columns={columns}
-          onUpdate={setColumns}
-          onClose={() => setShowColumnCustomizer(false)}
+          onSuccess={fetchLeads}
         />
       )}
 

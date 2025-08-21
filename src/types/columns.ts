@@ -10,5 +10,6 @@ export interface LeadColumn {
   key: string;
   label: string;
   visible: boolean;
+  order: number;
   type?: 'text' | 'email' | 'phone' | 'date' | 'select' | 'number';
 }
