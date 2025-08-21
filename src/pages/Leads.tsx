@@ -1,5 +1,5 @@
 
-import { LeadTable } from "@/components/LeadTable";
+import LeadTable from "@/components/LeadTable";
 import { Button } from "@/components/ui/button";
 import { Settings, Plus, Trash2, ChevronDown, Upload, Download } from "lucide-react";
 import { useState, useRef } from "react";
@@ -31,6 +31,20 @@ const Leads = () => {
     if (selectedLeads.length === 0) return;
 
     try {
+      // First delete related records to avoid foreign key constraints
+      // Delete lead action items
+      await supabase
+        .from('lead_action_items')
+        .delete()
+        .in('lead_id', selectedLeads);
+
+      // Delete notifications related to these leads
+      await supabase
+        .from('notifications')
+        .delete()
+        .in('lead_id', selectedLeads);
+
+      // Now delete the leads
       const { error } = await supabase
         .from('leads')
         .delete()
@@ -48,10 +62,11 @@ const Leads = () => {
       
       setSelectedLeads([]);
       setRefreshTrigger(prev => prev + 1);
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Bulk delete error:', error);
       toast({
         title: "Error",
-        description: "Failed to delete leads",
+        description: error.message || "Failed to delete leads",
         variant: "destructive",
       });
     }

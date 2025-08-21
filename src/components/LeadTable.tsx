@@ -99,7 +99,7 @@ interface LeadTableProps {
   setSelectedLeads: React.Dispatch<React.SetStateAction<string[]>>;
 }
 
-export const LeadTable = ({
+const LeadTable = ({
   showColumnCustomizer,
   setShowColumnCustomizer,
   showModal,
@@ -195,6 +195,20 @@ export const LeadTable = ({
       // Find the lead first to log the deleted data
       const leadToDelete = leads.find(l => l.id === id);
       
+      // First delete related records to avoid foreign key constraints
+      // Delete lead action items
+      await supabase
+        .from('lead_action_items')
+        .delete()
+        .eq('lead_id', id);
+
+      // Delete notifications related to this lead
+      await supabase
+        .from('notifications')
+        .delete()
+        .eq('lead_id', id);
+
+      // Now delete the lead
       const {
         error
       } = await supabase.from('leads').delete().eq('id', id);
@@ -208,10 +222,11 @@ export const LeadTable = ({
         description: "Lead deleted successfully"
       });
       fetchLeads();
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Delete error:', error);
       toast({
         title: "Error",
-        description: "Failed to delete lead",
+        description: error.message || "Failed to delete lead",
         variant: "destructive"
       });
     }
@@ -440,3 +455,5 @@ export const LeadTable = ({
       </AlertDialog>
     </div>;
 };
+
+export default LeadTable;

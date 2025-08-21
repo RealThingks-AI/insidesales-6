@@ -69,9 +69,23 @@ export const useSimpleLeadsImportExport = (onRefresh: () => void) => {
 
     } catch (error: any) {
       console.error('Import error:', error);
+      let errorMessage = "Failed to import leads";
+      
+      if (error.message) {
+        if (error.message.includes('foreign key')) {
+          errorMessage = "Import failed: Invalid user reference in data";
+        } else if (error.message.includes('duplicate key')) {
+          errorMessage = "Import failed: Duplicate records found";
+        } else if (error.message.includes('check constraint')) {
+          errorMessage = "Import failed: Invalid data format";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       toast({
         title: "Import Error",
-        description: error.message || "Failed to import leads",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
