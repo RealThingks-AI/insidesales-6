@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -9,7 +8,6 @@ import { useToast } from "@/hooks/use-toast";
 import { validateRequiredFields, getFieldErrors, validateDateLogic, validateRevenueSum } from "./deal-form/validation";
 import { DealStageForm } from "./deal-form/DealStageForm";
 import { DealActionItemsModal } from "./DealActionItemsModal";
-import { MoreHorizontal } from "lucide-react";
 
 interface DealFormProps {
   deal: Deal | null;
@@ -285,12 +283,11 @@ export const DealForm = ({ deal, isOpen, onClose, onSave, isCreating = false, in
                       {showPreviousStages ? 'Hide Previous Stages' : 'Show All Stages'}
                     </Button>
                     <Button
-                      variant="ghost"
+                      variant="outline"
                       size="sm"
                       onClick={() => setActionModalOpen(true)}
-                      className="p-2"
                     >
-                      <MoreHorizontal className="w-4 h-4" />
+                      Action
                     </Button>
                   </div>
                 )}
