@@ -1,5 +1,4 @@
-
-import { LeadTable } from "@/components/LeadTable";
+import LeadTable from "@/components/LeadTable";
 import { Button } from "@/components/ui/button";
 import { Settings, Plus, Trash2, ChevronDown, Upload, Download } from "lucide-react";
 import { useState, useRef } from "react";
