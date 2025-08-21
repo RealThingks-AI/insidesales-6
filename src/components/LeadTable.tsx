@@ -165,6 +165,20 @@ const LeadTable = ({
 
   const handleDelete = async (leadId: string) => {
     try {
+      console.log('Attempting to delete lead:', leadId);
+      
+      // First, delete any related notifications
+      const { error: notificationError } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('lead_id', leadId);
+
+      if (notificationError) {
+        console.error('Error deleting related notifications:', notificationError);
+        // Continue with lead deletion even if notifications deletion fails
+      }
+
+      // Then delete the lead
       const { error } = await supabase
         .from('leads')
         .delete()
@@ -174,7 +188,7 @@ const LeadTable = ({
         console.error('Delete error:', error);
         toast({
           title: "Error",
-          description: "Failed to delete lead",
+          description: `Failed to delete lead: ${error.message}`,
           variant: "destructive",
         });
         return;
@@ -199,6 +213,20 @@ const LeadTable = ({
     if (selectedLeads.length === 0) return;
 
     try {
+      console.log('Attempting bulk delete of leads:', selectedLeads);
+      
+      // First, delete all related notifications for the selected leads
+      const { error: notificationError } = await supabase
+        .from('notifications')
+        .delete()
+        .in('lead_id', selectedLeads);
+
+      if (notificationError) {
+        console.error('Error deleting related notifications:', notificationError);
+        // Continue with lead deletion even if notifications deletion fails
+      }
+
+      // Then delete the leads
       const { error } = await supabase
         .from('leads')
         .delete()
@@ -208,7 +236,7 @@ const LeadTable = ({
         console.error('Bulk delete error:', error);
         toast({
           title: "Error",
-          description: "Failed to delete leads",
+          description: `Failed to delete leads: ${error.message}`,
           variant: "destructive",
         });
         return;
@@ -388,6 +416,14 @@ const LeadTable = ({
           }}
           lead={editingLead}
           onSuccess={fetchLeads}
+        />
+      )}
+
+      {showColumnCustomizer && (
+        <LeadColumnCustomizer
+          columns={columns}
+          onColumnsChange={setColumns}
+          onClose={() => setShowColumnCustomizer(false)}
         />
       )}
 

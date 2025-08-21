@@ -32,7 +32,10 @@ export const useSimpleLeadsImportExport = (onRefresh: () => void) => {
     setIsImporting(true);
     
     try {
+      console.log('Starting import process...');
       const text = await file.text();
+      console.log('File content length:', text.length);
+      
       const processor = new GenericCSVProcessor();
       
       const result = await processor.processCSV(text, {
@@ -43,6 +46,7 @@ export const useSimpleLeadsImportExport = (onRefresh: () => void) => {
         }
       });
 
+      console.log('Import result:', result);
       const { successCount, updateCount, errorCount } = result;
       const message = `Import completed: ${successCount} new, ${updateCount} updated, ${errorCount} errors`;
       
@@ -69,9 +73,21 @@ export const useSimpleLeadsImportExport = (onRefresh: () => void) => {
 
     } catch (error: any) {
       console.error('Import error:', error);
+      
+      // Handle specific database constraint errors
+      let errorMessage = error.message || "Failed to import leads";
+      
+      if (error.message?.includes('foreign key constraint')) {
+        errorMessage = "Import failed due to data integrity constraints. Please check your data format and try again.";
+      } else if (error.message?.includes('duplicate key')) {
+        errorMessage = "Import failed due to duplicate entries. Please check for existing records and try again.";
+      } else if (error.message?.includes('violates check constraint')) {
+        errorMessage = "Import failed due to invalid data values. Please check your data format and try again.";
+      }
+      
       toast({
         title: "Import Error",
-        description: error.message || "Failed to import leads",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
