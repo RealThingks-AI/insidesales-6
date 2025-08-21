@@ -270,26 +270,17 @@ export const DealForm = ({ deal, isOpen, onClose, onSave, isCreating = false, in
                   {currentStage}
                 </Badge>
                 {!isCreating && (
-                  <div className="flex items-center gap-2">
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => {
-                        console.log("Toggle button clicked! Current state:", showPreviousStages);
-                        setShowPreviousStages(!showPreviousStages);
-                        console.log("New state will be:", !showPreviousStages);
-                      }}
-                    >
-                      {showPreviousStages ? 'Hide Previous Stages' : 'Show All Stages'}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setActionModalOpen(true)}
-                    >
-                      Action
-                    </Button>
-                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => {
+                      console.log("Toggle button clicked! Current state:", showPreviousStages);
+                      setShowPreviousStages(!showPreviousStages);
+                      console.log("New state will be:", !showPreviousStages);
+                    }}
+                  >
+                    {showPreviousStages ? 'Hide Previous Stages' : 'Show All Stages'}
+                  </Button>
                 )}
               </div>
             </div>
@@ -340,6 +331,15 @@ export const DealForm = ({ deal, isOpen, onClose, onSave, isCreating = false, in
                     </SelectContent>
                   </Select>
                 </div>
+              )}
+              {!isCreating && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setActionModalOpen(true)}
+                >
+                  Action
+                </Button>
               )}
             </div>
           </div>
