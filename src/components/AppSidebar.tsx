@@ -24,11 +24,6 @@ const items = [{
   icon: Package,
   roles: ["tech_lead", "management", "admin"]
 }, {
-  title: "Reports",
-  url: "/reports",
-  icon: BarChart3,
-  roles: ["tech_lead", "management", "admin"]
-}, {
   title: "Subscriptions",
   url: "/subscriptions",
   icon: CreditCard,
@@ -48,6 +43,11 @@ const items = [{
   url: "/compliance",
   icon: ShieldCheck,
   roles: ["management", "admin"]
+}, {
+  title: "Reports",
+  url: "/reports",
+  icon: BarChart3,
+  roles: ["tech_lead", "management", "admin"]
 }, {
   title: "Admin",
   url: "/admin",
