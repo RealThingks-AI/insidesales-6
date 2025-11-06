@@ -75,13 +75,14 @@ export function usePageAccess() {
     if (accessMap[route]) return true;
     
     // Check parent route access (hierarchical permissions)
-    // e.g., if user has access to /assets/, they get access to /assets/add, /assets/edit/:id, etc.
+    // e.g., if user has access to /assets, they get access to /assets/add, /assets/edit/:id, etc.
     const segments = route.split('/').filter(Boolean);
     
     // Try progressively shorter parent paths
     for (let i = segments.length - 1; i > 0; i--) {
-      const parentRoute = '/' + segments.slice(0, i).join('/') + '/';
-      if (accessMap[parentRoute]) return true;
+      const parentRoute = '/' + segments.slice(0, i).join('/');
+      // Check both with and without trailing slash
+      if (accessMap[parentRoute] || accessMap[parentRoute + '/']) return true;
     }
     
     return false;
