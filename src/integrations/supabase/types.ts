@@ -624,6 +624,78 @@ export type Database = {
         }
         Relationships: []
       }
+      it_policies: {
+        Row: {
+          attachments: Json | null
+          category: string
+          created_at: string | null
+          created_by: string
+          department: string | null
+          description: string | null
+          id: string
+          last_review_date: string | null
+          next_review_date: string | null
+          owner_id: string | null
+          policy_id: string
+          policy_name: string
+          remarks: string | null
+          review_frequency: string
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          attachments?: Json | null
+          category: string
+          created_at?: string | null
+          created_by: string
+          department?: string | null
+          description?: string | null
+          id?: string
+          last_review_date?: string | null
+          next_review_date?: string | null
+          owner_id?: string | null
+          policy_id: string
+          policy_name: string
+          remarks?: string | null
+          review_frequency: string
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          attachments?: Json | null
+          category?: string
+          created_at?: string | null
+          created_by?: string
+          department?: string | null
+          description?: string | null
+          id?: string
+          last_review_date?: string | null
+          next_review_date?: string | null
+          owner_id?: string | null
+          policy_id?: string
+          policy_name?: string
+          remarks?: string | null
+          review_frequency?: string
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "it_policies_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "it_policies_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       licenses: {
         Row: {
           cost: number | null
@@ -1394,6 +1466,10 @@ export type Database = {
         Args: { current_rating_param: string; target_rating_param: string }
         Returns: number
       }
+      calculate_next_review_date: {
+        Args: { frequency: string; last_review: string }
+        Returns: string
+      }
       calculate_next_upgrade_date: {
         Args: { approved_at_param: string }
         Returns: string
@@ -1409,6 +1485,7 @@ export type Database = {
       }
       cleanup_old_notifications: { Args: never; Returns: undefined }
       generate_incident_number: { Args: never; Returns: string }
+      generate_policy_id: { Args: never; Returns: string }
       generate_ticket_number: { Args: never; Returns: string }
       get_current_user_role: { Args: never; Returns: string }
       get_my_tech_lead_id: { Args: never; Returns: string }
@@ -1433,6 +1510,7 @@ export type Database = {
       }
       send_goal_reminders: { Args: never; Returns: undefined }
       send_maintenance_reminders: { Args: never; Returns: undefined }
+      send_policy_review_reminders: { Args: never; Returns: undefined }
       test_employee_rating_insert: {
         Args: {
           p_rating: string
