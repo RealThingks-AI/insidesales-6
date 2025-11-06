@@ -9,10 +9,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { useNavigate } from "react-router-dom";
 import IncidentDialog from "./IncidentDialog";
 import IncidentDetails from "./IncidentDetails";
 import DataTable, { Column } from "@/components/common/DataTable";
 export default function Incidents() {
+  const navigate = useNavigate();
   const {
     profile
   } = useAuth();
@@ -247,12 +249,9 @@ export default function Incidents() {
             <h1 className="text-3xl font-bold tracking-tight">Incident Management</h1>
             
           </div>
-          <Button onClick={() => {
-          setSelectedIncident(null);
-          setDialogOpen(true);
-        }}>
+          <Button onClick={() => navigate("/tickets/add")}>
             <Plus className="mr-2 h-4 w-4" />
-            New Incident
+            Create Ticket/Incident
           </Button>
         </div>
 

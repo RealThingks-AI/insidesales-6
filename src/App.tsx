@@ -13,6 +13,7 @@ import Admin from "./pages/admin";
 import Profile from "./pages/Profile";
 import Notifications from "./pages/Notifications";
 import Tickets from "./pages/tickets";
+import AddTicket from "./pages/tickets/add";
 import Assets from "./pages/assets";
 import AddAsset from "./pages/assets/add";
 import EditAsset from "./pages/assets/edit";
@@ -50,6 +51,7 @@ const App = () => (
                     <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                     <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
                     <Route path="/tickets" element={<ProtectedRoute><Tickets /></ProtectedRoute>} />
+                    <Route path="/tickets/add" element={<ProtectedRoute><AddTicket /></ProtectedRoute>} />
                     <Route path="/assets" element={<ProtectedRoute><Assets /></ProtectedRoute>} />
                     <Route path="/assets/add" element={<ProtectedRoute><AddAsset /></ProtectedRoute>} />
                     <Route path="/assets/edit/:id" element={<ProtectedRoute><EditAsset /></ProtectedRoute>} />
