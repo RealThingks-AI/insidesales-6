@@ -90,7 +90,7 @@ export default function PolicyList({
 
   const filteredPolicies = policies.filter(policy => {
     if (filters.status !== 'all' && policy.status !== filters.status) return false;
-    if (filters.category && policy.category !== filters.category) return false;
+    if (filters.category !== 'all' && policy.category !== filters.category) return false;
     if (filters.search) {
       const searchLower = filters.search.toLowerCase();
       return (
@@ -137,7 +137,7 @@ export default function PolicyList({
               <SelectValue placeholder="All Categories" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Categories</SelectItem>
+              <SelectItem value="all">All Categories</SelectItem>
               {categories.map((cat) => (
                 <SelectItem key={cat} value={cat}>{cat}</SelectItem>
               ))}

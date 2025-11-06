@@ -15,7 +15,7 @@ const Compliance = () => {
   const [selectedPolicy, setSelectedPolicy] = useState<ITPolicy | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [filters, setFilters] = useState<PolicyFilters>({
-    category: '',
+    category: 'all',
     status: 'all',
     search: ''
   });
