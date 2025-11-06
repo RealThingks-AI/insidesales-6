@@ -12,9 +12,10 @@ import { format } from "date-fns";
 import IncidentDialog from "./IncidentDialog";
 import IncidentDetails from "./IncidentDetails";
 import DataTable, { Column } from "@/components/common/DataTable";
-
 export default function Incidents() {
-  const { profile } = useAuth();
+  const {
+    profile
+  } = useAuth();
   const [incidents, setIncidents] = useState<any[]>([]);
   const [filteredIncidents, setFilteredIncidents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,60 +30,48 @@ export default function Incidents() {
     total: 0,
     active: 0,
     critical: 0,
-    avgResolutionTime: 0,
+    avgResolutionTime: 0
   });
-
   useEffect(() => {
     fetchIncidents();
   }, []);
-
   useEffect(() => {
     applyFilters();
     calculateStats();
   }, [incidents, searchQuery, statusFilter, severityFilter, priorityFilter]);
-
   const fetchIncidents = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("incidents")
-        .select("*")
-        .order("created_at", { ascending: false });
-
+      const {
+        data,
+        error
+      } = await supabase.from("incidents").select("*").order("created_at", {
+        ascending: false
+      });
       if (error) throw error;
-      
+
       // Fetch profile names separately
-      const incidentsWithProfiles = await Promise.all(
-        (data || []).map(async (incident) => {
-          let reported_by_profile = null;
-          let assigned_to_profile = null;
-
-          if (incident.reported_by) {
-            const { data: reportedBy } = await supabase
-              .from("profiles")
-              .select("full_name, email")
-              .eq("user_id", incident.reported_by)
-              .single();
-            reported_by_profile = reportedBy;
-          }
-
-          if (incident.assigned_to) {
-            const { data: assignedTo } = await supabase
-              .from("profiles")
-              .select("full_name, email")
-              .eq("user_id", incident.assigned_to)
-              .single();
-            assigned_to_profile = assignedTo;
-          }
-
-          return {
-            ...incident,
-            reported_by_profile,
-            assigned_to_profile,
-          };
-        })
-      );
-
+      const incidentsWithProfiles = await Promise.all((data || []).map(async incident => {
+        let reported_by_profile = null;
+        let assigned_to_profile = null;
+        if (incident.reported_by) {
+          const {
+            data: reportedBy
+          } = await supabase.from("profiles").select("full_name, email").eq("user_id", incident.reported_by).single();
+          reported_by_profile = reportedBy;
+        }
+        if (incident.assigned_to) {
+          const {
+            data: assignedTo
+          } = await supabase.from("profiles").select("full_name, email").eq("user_id", incident.assigned_to).single();
+          assigned_to_profile = assignedTo;
+        }
+        return {
+          ...incident,
+          reported_by_profile,
+          assigned_to_profile
+        };
+      }));
       setIncidents(incidentsWithProfiles);
     } catch (error: any) {
       console.error("Error fetching incidents:", error);
@@ -91,39 +80,27 @@ export default function Incidents() {
       setLoading(false);
     }
   };
-
   const applyFilters = () => {
     let filtered = incidents;
-
     if (searchQuery) {
-      filtered = filtered.filter(
-        (inc) =>
-          inc.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          inc.ticket_number?.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+      filtered = filtered.filter(inc => inc.title?.toLowerCase().includes(searchQuery.toLowerCase()) || inc.ticket_number?.toLowerCase().includes(searchQuery.toLowerCase()));
     }
-
     if (statusFilter !== "all") {
-      filtered = filtered.filter((inc) => inc.status === statusFilter);
+      filtered = filtered.filter(inc => inc.status === statusFilter);
     }
-
     if (severityFilter !== "all") {
-      filtered = filtered.filter((inc) => inc.severity === severityFilter);
+      filtered = filtered.filter(inc => inc.severity === severityFilter);
     }
-
     if (priorityFilter !== "all") {
-      filtered = filtered.filter((inc) => inc.priority === priorityFilter);
+      filtered = filtered.filter(inc => inc.priority === priorityFilter);
     }
-
     setFilteredIncidents(filtered);
   };
-
   const calculateStats = () => {
     const total = incidents.length;
-    const active = incidents.filter((inc) => inc.status === "open" || inc.status === "investigating").length;
-    const critical = incidents.filter((inc) => inc.severity === "critical").length;
-
-    const resolvedIncidents = incidents.filter((inc) => inc.resolved_at);
+    const active = incidents.filter(inc => inc.status === "open" || inc.status === "investigating").length;
+    const critical = incidents.filter(inc => inc.severity === "critical").length;
+    const resolvedIncidents = incidents.filter(inc => inc.resolved_at);
     let avgResolutionTime = 0;
     if (resolvedIncidents.length > 0) {
       const totalTime = resolvedIncidents.reduce((acc, inc) => {
@@ -133,25 +110,27 @@ export default function Incidents() {
       }, 0);
       avgResolutionTime = Math.round(totalTime / resolvedIncidents.length / (1000 * 60 * 60)); // hours
     }
-
-    setStats({ total, active, critical, avgResolutionTime });
+    setStats({
+      total,
+      active,
+      critical,
+      avgResolutionTime
+    });
   };
-
   const handleEdit = (incident: any) => {
     setSelectedIncident(incident);
     setDialogOpen(true);
   };
-
   const handleView = (incident: any) => {
     setSelectedIncident(incident);
     setDetailsOpen(true);
   };
-
   const handleDelete = async (incident: any) => {
     if (!confirm("Are you sure you want to delete this incident?")) return;
-
     try {
-      const { error } = await supabase.from("incidents").delete().eq("id", incident.id);
+      const {
+        error
+      } = await supabase.from("incidents").delete().eq("id", incident.id);
       if (error) throw error;
       toast.success("Incident deleted");
       fetchIncidents();
@@ -160,129 +139,118 @@ export default function Incidents() {
       toast.error("Failed to delete incident");
     }
   };
-
   const getSeverityColor = (severity: string) => {
     switch (severity) {
-      case "critical": return "destructive";
-      case "high": return "destructive";
-      case "medium": return "secondary";
-      case "low": return "outline";
-      default: return "outline";
+      case "critical":
+        return "destructive";
+      case "high":
+        return "destructive";
+      case "medium":
+        return "secondary";
+      case "low":
+        return "outline";
+      default:
+        return "outline";
     }
   };
-
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case "critical": return "destructive";
-      case "high": return "destructive";
-      case "medium": return "secondary";
-      case "low": return "outline";
-      default: return "outline";
+      case "critical":
+        return "destructive";
+      case "high":
+        return "destructive";
+      case "medium":
+        return "secondary";
+      case "low":
+        return "outline";
+      default:
+        return "outline";
     }
   };
-
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "open": return "destructive";
-      case "investigating": return "secondary";
-      case "resolved": return "default";
-      case "closed": return "outline";
-      default: return "outline";
+      case "open":
+        return "destructive";
+      case "investigating":
+        return "secondary";
+      case "resolved":
+        return "default";
+      case "closed":
+        return "outline";
+      default:
+        return "outline";
     }
   };
-
-  const columns: Column<any>[] = [
-    {
-      key: "ticket_number",
-      header: "ID",
-      render: (value, row) => (
-        <Button variant="link" onClick={() => handleView(row)} className="p-0 h-auto">
+  const columns: Column<any>[] = [{
+    key: "ticket_number",
+    header: "ID",
+    render: (value, row) => <Button variant="link" onClick={() => handleView(row)} className="p-0 h-auto">
           {value}
         </Button>
-      ),
-    },
-    {
-      key: "title",
-      header: "Title",
-    },
-    {
-      key: "impacted_service",
-      header: "Impacted Service",
-    },
-    {
-      key: "severity",
-      header: "Severity",
-      render: (value) => (
-        <Badge variant={getSeverityColor(value)}>{value}</Badge>
-      ),
-    },
-    {
-      key: "priority",
-      header: "Priority",
-      render: (value) => (
-        <Badge variant={getPriorityColor(value)}>{value}</Badge>
-      ),
-    },
-    {
-      key: "status",
-      header: "Status",
-      render: (value) => (
-        <Badge variant={getStatusColor(value)}>{value}</Badge>
-      ),
-    },
-    {
-      key: "sla_response_breached",
-      header: "SLA",
-      render: (value, row) => {
-        if (row.sla_response_breached || row.sla_resolution_breached) {
-          return <Badge variant="destructive">Breached</Badge>;
-        }
-        if (row.status === 'resolved' || row.status === 'closed') {
-          return <Badge variant="default">Met</Badge>;
-        }
-        return <Badge variant="secondary">On Track</Badge>;
-      },
-    },
-    {
-      key: "assigned_to_profile",
-      header: "Assigned To",
-      render: (value) => value?.full_name || "Unassigned",
-    },
-    {
-      key: "created_at",
-      header: "Created",
-      render: (value) => format(new Date(value), "PP"),
-    },
-    {
-      key: "id",
-      header: "Actions",
-      render: (_, row) => (
-        <div className="flex gap-2">
+  }, {
+    key: "title",
+    header: "Title"
+  }, {
+    key: "impacted_service",
+    header: "Impacted Service"
+  }, {
+    key: "severity",
+    header: "Severity",
+    render: value => <Badge variant={getSeverityColor(value)}>{value}</Badge>
+  }, {
+    key: "priority",
+    header: "Priority",
+    render: value => <Badge variant={getPriorityColor(value)}>{value}</Badge>
+  }, {
+    key: "status",
+    header: "Status",
+    render: value => <Badge variant={getStatusColor(value)}>{value}</Badge>
+  }, {
+    key: "sla_response_breached",
+    header: "SLA",
+    render: (value, row) => {
+      if (row.sla_response_breached || row.sla_resolution_breached) {
+        return <Badge variant="destructive">Breached</Badge>;
+      }
+      if (row.status === 'resolved' || row.status === 'closed') {
+        return <Badge variant="default">Met</Badge>;
+      }
+      return <Badge variant="secondary">On Track</Badge>;
+    }
+  }, {
+    key: "assigned_to_profile",
+    header: "Assigned To",
+    render: value => value?.full_name || "Unassigned"
+  }, {
+    key: "created_at",
+    header: "Created",
+    render: value => format(new Date(value), "PP")
+  }, {
+    key: "id",
+    header: "Actions",
+    render: (_, row) => <div className="flex gap-2">
           <Button size="sm" variant="ghost" onClick={() => handleView(row)}>
             View
           </Button>
           <Button size="sm" variant="ghost" onClick={() => handleEdit(row)}>
             Edit
           </Button>
-          {profile?.role === "admin" && (
-            <Button size="sm" variant="ghost" onClick={() => handleDelete(row)}>
+          {profile?.role === "admin" && <Button size="sm" variant="ghost" onClick={() => handleDelete(row)}>
               Delete
-            </Button>
-          )}
+            </Button>}
         </div>
-      ),
-    },
-  ];
-
-  return (
-    <div className="h-screen flex flex-col overflow-hidden">
+  }];
+  return <div className="h-screen flex flex-col overflow-hidden">
       <div className="flex-shrink-0 p-6 pb-0">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Incident Management</h1>
-            <p className="text-muted-foreground">Track and resolve system incidents</p>
+            
           </div>
-          <Button onClick={() => { setSelectedIncident(null); setDialogOpen(true); }}>
+          <Button onClick={() => {
+          setSelectedIncident(null);
+          setDialogOpen(true);
+        }}>
             <Plus className="mr-2 h-4 w-4" />
             New Incident
           </Button>
@@ -335,12 +303,7 @@ export default function Incidents() {
         <div className="flex gap-4 mb-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by title or ID..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
+            <Input placeholder="Search by title or ID..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-10" />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-[200px]">
@@ -382,28 +345,11 @@ export default function Incidents() {
       </div>
 
       <div className="flex-1 overflow-auto p-6 pt-0">
-        <DataTable
-          data={filteredIncidents}
-          columns={columns}
-          loading={loading}
-          searchable={false}
-          emptyStateTitle="No incidents found"
-          emptyStateDescription="Create your first incident to get started"
-        />
+        <DataTable data={filteredIncidents} columns={columns} loading={loading} searchable={false} emptyStateTitle="No incidents found" emptyStateDescription="Create your first incident to get started" />
       </div>
 
-      <IncidentDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        incident={selectedIncident}
-        onSuccess={fetchIncidents}
-      />
+      <IncidentDialog open={dialogOpen} onOpenChange={setDialogOpen} incident={selectedIncident} onSuccess={fetchIncidents} />
 
-      <IncidentDetails
-        open={detailsOpen}
-        onOpenChange={setDetailsOpen}
-        incident={selectedIncident}
-      />
-    </div>
-  );
+      <IncidentDetails open={detailsOpen} onOpenChange={setDetailsOpen} incident={selectedIncident} />
+    </div>;
 }
