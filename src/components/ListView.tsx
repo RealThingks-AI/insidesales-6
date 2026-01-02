@@ -34,6 +34,7 @@ interface ListViewProps {
   onDeleteDeals: (dealIds: string[]) => void;
   onImportDeals: (deals: Partial<Deal>[]) => void;
   initialStageFilter?: string;
+  onSelectionChange?: (selectedIds: string[]) => void;
 }
 
 export const ListView = ({ 
@@ -42,7 +43,8 @@ export const ListView = ({
   onUpdateDeal, 
   onDeleteDeals, 
   onImportDeals,
-  initialStageFilter = 'all'
+  initialStageFilter = 'all',
+  onSelectionChange
 }: ListViewProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [leadOwnerFilter, setLeadOwnerFilter] = useState("all");
@@ -74,6 +76,11 @@ export const ListView = ({
       setFilters(prev => ({ ...prev, stages: [initialStageFilter as DealStage] }));
     }
   }, [initialStageFilter]);
+
+  // Notify parent of selection changes
+  useEffect(() => {
+    onSelectionChange?.(Array.from(selectedDeals));
+  }, [selectedDeals, onSelectionChange]);
   
   // Task Modal state
   const [taskModalOpen, setTaskModalOpen] = useState(false);
