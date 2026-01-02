@@ -1,153 +1,111 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Search, Plus } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Plus, Calendar, CheckCircle, Clock, AlertTriangle } from "lucide-react";
+import { format, isPast, isToday, addDays, isBefore } from "date-fns";
 import MaintenanceForm from "./MaintenanceForm";
-import { format } from "date-fns";
 
 interface MaintenanceRecord {
   id: string;
   asset_name: string;
-  maintenance_type: string;
+  maintenance_type: string | null;
   scheduled_date: string;
   performed_by: string | null;
-  status: string;
-  description: string;
-  notes: string;
-  performed_by_name?: string;
-  [key: string]: any;
+  status: string | null;
+  notes: string | null;
+  created_at: string;
 }
 
 const MaintenanceTab = () => {
-  const { user } = useAuth();
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingMaintenance, setEditingMaintenance] = useState<any>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<MaintenanceRecord | null>(null);
 
-  // Fetch maintenance records
-  const { data: maintenanceRecords = [], isLoading } = useQuery<MaintenanceRecord[]>({
+  const { data: maintenance = [], isLoading } = useQuery({
     queryKey: ["maintenance"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("maintenance")
-        .select("*")
-        .order("scheduled_date", { ascending: false });
-
+      const { data, error } = await (supabase
+        .from("maintenance" as any)
+        .select("*") as any)
+        .order("scheduled_date", { ascending: true });
       if (error) throw error;
-
-      // Fetch user names separately
-      if (data && data.length > 0) {
-        const userIds = data.map(m => m.performed_by).filter(Boolean);
-        const { data: users } = await supabase
-          .from("profiles")
-          .select("user_id, full_name")
-          .in("user_id", userIds);
-
-        return data.map(m => ({
-          ...m,
-          performed_by_name: users?.find(u => u.user_id === m.performed_by)?.full_name
-        })) as MaintenanceRecord[];
-      }
-
-      return data as MaintenanceRecord[] || [];
+      return (data || []) as MaintenanceRecord[];
     },
   });
 
-  // Filter maintenance
-  const filteredMaintenance = maintenanceRecords.filter((record) =>
-    record.asset_name.toLowerCase().includes(searchQuery.toLowerCase())
+  const upcomingMaintenance = maintenance.filter(
+    (m) => m.status === "Scheduled" && !isPast(new Date(m.scheduled_date))
   );
+  const overdueCount = maintenance.filter(
+    (m) => m.status === "Scheduled" && isPast(new Date(m.scheduled_date)) && !isToday(new Date(m.scheduled_date))
+  ).length;
 
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-      Scheduled: "secondary",
-      "In Progress": "default",
-      Completed: "outline",
-      Cancelled: "destructive",
-    };
-    return <Badge variant={variants[status] || "default"}>{status}</Badge>;
-  };
-
-  const handleEdit = (maintenance: any) => {
-    setEditingMaintenance(maintenance);
-    setIsFormOpen(true);
-  };
-
-  const handleCloseForm = () => {
-    setIsFormOpen(false);
-    setEditingMaintenance(null);
+  const getStatusBadge = (status: string | null, scheduledDate: string) => {
+    const date = new Date(scheduledDate);
+    if (status === "Completed") {
+      return <Badge className="bg-green-500/20 text-green-700 border-green-500/30"><CheckCircle className="h-3 w-3 mr-1" /> Completed</Badge>;
+    }
+    if (isPast(date) && !isToday(date)) {
+      return <Badge className="bg-red-500/20 text-red-700 border-red-500/30"><AlertTriangle className="h-3 w-3 mr-1" /> Overdue</Badge>;
+    }
+    if (isBefore(date, addDays(new Date(), 1))) {
+      return <Badge className="bg-yellow-500/20 text-yellow-700 border-yellow-500/30"><Clock className="h-3 w-3 mr-1" /> Due Soon</Badge>;
+    }
+    return <Badge className="bg-blue-500/20 text-blue-700 border-blue-500/30"><Calendar className="h-3 w-3 mr-1" /> Scheduled</Badge>;
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle>Scheduled Maintenance</CardTitle>
-            <CardDescription>Track and manage scheduled maintenance activities</CardDescription>
-          </div>
-          <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={() => setEditingMaintenance(null)}>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Maintenance
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>
-                  {editingMaintenance ? "Edit Maintenance" : "Add New Maintenance"}
-                </DialogTitle>
-                <DialogDescription>
-                  {editingMaintenance
-                    ? "Update maintenance record"
-                    : "Schedule a new maintenance activity"}
-                </DialogDescription>
-              </DialogHeader>
-              <MaintenanceForm
-                maintenance={editingMaintenance}
-                onClose={handleCloseForm}
-              />
-            </DialogContent>
-          </Dialog>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by asset name..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
-        </div>
+    <div className="space-y-6">
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-4">
+              <Calendar className="h-8 w-8 text-primary" />
+              <div>
+                <p className="text-sm text-muted-foreground">Upcoming</p>
+                <p className="text-2xl font-bold">{upcomingMaintenance.length}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-4">
+              <AlertTriangle className="h-8 w-8 text-destructive" />
+              <div>
+                <p className="text-sm text-muted-foreground">Overdue</p>
+                <p className="text-2xl font-bold text-destructive">{overdueCount}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-4">
+              <CheckCircle className="h-8 w-8 text-green-600" />
+              <div>
+                <p className="text-sm text-muted-foreground">Completed</p>
+                <p className="text-2xl font-bold">{maintenance.filter((m) => m.status === "Completed").length}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
-        <div className="border rounded-lg">
+      {/* Actions */}
+      <div className="flex justify-end">
+        <Button onClick={() => { setEditingRecord(null); setShowForm(true); }}>
+          <Plus className="h-4 w-4 mr-2" /> Schedule Maintenance
+        </Button>
+      </div>
+
+      {/* Table */}
+      <Card>
+        <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
@@ -156,42 +114,30 @@ const MaintenanceTab = () => {
                 <TableHead>Scheduled Date</TableHead>
                 <TableHead>Performed By</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Notes</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">
-                    Loading...
-                  </TableCell>
+                  <TableCell colSpan={7} className="text-center py-8">Loading...</TableCell>
                 </TableRow>
-              ) : filteredMaintenance.length === 0 ? (
+              ) : maintenance.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">
-                    No maintenance records found
-                  </TableCell>
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No maintenance records</TableCell>
                 </TableRow>
               ) : (
-                filteredMaintenance.map((record) => (
+                maintenance.map((record) => (
                   <TableRow key={record.id}>
                     <TableCell className="font-medium">{record.asset_name}</TableCell>
+                    <TableCell>{record.maintenance_type || "-"}</TableCell>
+                    <TableCell>{format(new Date(record.scheduled_date), "MMM d, yyyy")}</TableCell>
+                    <TableCell>{record.performed_by || "-"}</TableCell>
+                    <TableCell>{getStatusBadge(record.status, record.scheduled_date)}</TableCell>
+                    <TableCell className="max-w-[200px] truncate">{record.notes || "-"}</TableCell>
                     <TableCell>
-                      <Badge variant="outline">{record.maintenance_type}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      {format(new Date(record.scheduled_date), "MMM d, yyyy HH:mm")}
-                    </TableCell>
-                    <TableCell>
-                      {record.performed_by_name || "Unassigned"}
-                    </TableCell>
-                    <TableCell>{getStatusBadge(record.status)}</TableCell>
-                    <TableCell>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleEdit(record)}
-                      >
+                      <Button size="sm" variant="ghost" onClick={() => { setEditingRecord(record); setShowForm(true); }}>
                         Edit
                       </Button>
                     </TableCell>
@@ -200,9 +146,16 @@ const MaintenanceTab = () => {
               )}
             </TableBody>
           </Table>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+
+      {showForm && (
+        <MaintenanceForm
+          record={editingRecord}
+          onClose={() => { setShowForm(false); setEditingRecord(null); }}
+        />
+      )}
+    </div>
   );
 };
 

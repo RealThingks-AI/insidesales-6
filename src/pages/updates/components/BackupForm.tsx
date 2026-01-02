@@ -1,205 +1,132 @@
-import { useState, useEffect } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import FormInput from "@/components/common/FormInput";
-import FormSelect from "@/components/common/FormSelect";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "sonner";
 
 interface BackupFormProps {
-  backup?: any;
   onClose: () => void;
 }
 
-const BackupForm = ({ backup, onClose }: BackupFormProps) => {
-  const { user } = useAuth();
-  const { toast } = useToast();
+const BackupForm = ({ onClose }: BackupFormProps) => {
   const queryClient = useQueryClient();
-
   const [formData, setFormData] = useState({
-    backup_name: "",
-    backup_type: "System",
-    backup_date: "",
-    status: "In Progress",
-    verified_by: "",
-    notes: "",
+    file_name: "",
+    backup_type: "manual",
+    status: "completed",
+    records_count: "",
+    size_bytes: "",
   });
 
-  // Fetch tech leads and admins for verification
-  const { data: users = [] } = useQuery({
-    queryKey: ["tech-leads"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("user_id, full_name")
-        .in("role", ["tech_lead", "admin"])
-        .order("full_name");
+  const mutation = useMutation({
+    mutationFn: async (data: typeof formData) => {
+      const payload = {
+        file_name: data.file_name,
+        file_path: `/backups/${data.file_name}`,
+        backup_type: data.backup_type,
+        status: data.status,
+        records_count: data.records_count ? parseInt(data.records_count) : null,
+        size_bytes: data.size_bytes ? parseInt(data.size_bytes) : null,
+      };
 
+      const { error } = await supabase.from("backups").insert(payload);
       if (error) throw error;
-      return data || [];
-    },
-  });
-
-  useEffect(() => {
-    if (backup) {
-      setFormData({
-        backup_name: backup.backup_name || "",
-        backup_type: backup.backup_type || "System",
-        backup_date: backup.backup_date
-          ? new Date(backup.backup_date).toISOString().slice(0, 16)
-          : "",
-        status: backup.status || "In Progress",
-        verified_by: backup.verified_by || "",
-        notes: backup.notes || "",
-      });
-    }
-  }, [backup]);
-
-  const saveMutation = useMutation({
-    mutationFn: async (data: any) => {
-      if (backup) {
-        const { error } = await supabase
-          .from("backups")
-          .update(data)
-          .eq("id", backup.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from("backups").insert([
-          {
-            ...data,
-            created_by: user?.id,
-          },
-        ]);
-        if (error) throw error;
-      }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["backups"] });
-      toast({
-        title: "Success",
-        description: backup
-          ? "Backup record updated successfully"
-          : "Backup record created successfully",
-      });
+      queryClient.invalidateQueries({ queryKey: ["backups_list"] });
+      toast.success("Backup record added");
       onClose();
     },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to save backup",
-        variant: "destructive",
-      });
+    onError: () => {
+      toast.error("Failed to add backup record");
     },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const submitData: any = {
-      backup_name: formData.backup_name,
-      backup_type: formData.backup_type,
-      backup_date: new Date(formData.backup_date).toISOString(),
-      status: formData.status,
-      notes: formData.notes,
-    };
-
-    if (formData.verified_by) {
-      submitData.verified_by = formData.verified_by;
-      submitData.verified_at = new Date().toISOString();
+    if (!formData.file_name) {
+      toast.error("Backup name is required");
+      return;
     }
-
-    saveMutation.mutate(submitData);
+    mutation.mutate(formData);
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <FormInput
-        id="backup_name"
-        label="Backup Name"
-        value={formData.backup_name}
-        onChange={(value) => setFormData({ ...formData, backup_name: value })}
-        required
-      />
-
-      <div className="grid grid-cols-2 gap-4">
-        <FormSelect
-          id="backup_type"
-          label="Backup Type"
-          value={formData.backup_type}
-          onChange={(value) => setFormData({ ...formData, backup_type: value })}
-          options={[
-            { value: "System", label: "System" },
-            { value: "Server", label: "Server" },
-            { value: "Database", label: "Database" },
-            { value: "Full", label: "Full" },
-          ]}
-          required
-        />
-        <FormSelect
-          id="status"
-          label="Status"
-          value={formData.status}
-          onChange={(value) => setFormData({ ...formData, status: value })}
-          options={[
-            { value: "In Progress", label: "In Progress" },
-            { value: "Success", label: "Success" },
-            { value: "Failed", label: "Failed" },
-            { value: "Partial", label: "Partial" },
-          ]}
-          required
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="backup_date">Backup Date & Time</Label>
-        <input
-          type="datetime-local"
-          id="backup_date"
-          value={formData.backup_date}
-          onChange={(e) =>
-            setFormData({ ...formData, backup_date: e.target.value })
-          }
-          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-          required
-        />
-      </div>
-
-      <FormSelect
-        id="verified_by"
-        label="Verified By"
-        value={formData.verified_by}
-        onChange={(value) => setFormData({ ...formData, verified_by: value })}
-        options={[
-          { value: "", label: "Not verified" },
-          ...users.map((u) => ({
-            value: u.user_id,
-            label: u.full_name,
-          })),
-        ]}
-      />
-
-      <div className="space-y-2">
-        <Label htmlFor="notes">Notes</Label>
-        <Textarea
-          id="notes"
-          value={formData.notes}
-          onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-          placeholder="Additional notes..."
-          rows={3}
-        />
-      </div>
-
-      <div className="flex gap-2 justify-end">
-        <Button type="button" variant="outline" onClick={onClose}>
-          Cancel
-        </Button>
-        <Button type="submit" disabled={saveMutation.isPending}>
-          {saveMutation.isPending ? "Saving..." : backup ? "Update" : "Create"}
-        </Button>
-      </div>
-    </form>
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Add Backup Record</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label htmlFor="file_name">Backup Name *</Label>
+            <Input
+              id="file_name"
+              value={formData.file_name}
+              onChange={(e) => setFormData({ ...formData, file_name: e.target.value })}
+              placeholder="e.g., full_backup_2024_01_15"
+              required
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="backup_type">Type</Label>
+              <Select value={formData.backup_type} onValueChange={(v) => setFormData({ ...formData, backup_type: v })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="manual">Manual</SelectItem>
+                  <SelectItem value="automatic">Automatic</SelectItem>
+                  <SelectItem value="scheduled">Scheduled</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="status">Status</Label>
+              <Select value={formData.status} onValueChange={(v) => setFormData({ ...formData, status: v })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="failed">Failed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="records_count">Records Count</Label>
+              <Input
+                id="records_count"
+                type="number"
+                value={formData.records_count}
+                onChange={(e) => setFormData({ ...formData, records_count: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="size_bytes">Size (bytes)</Label>
+              <Input
+                id="size_bytes"
+                type="number"
+                value={formData.size_bytes}
+                onChange={(e) => setFormData({ ...formData, size_bytes: e.target.value })}
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+            <Button type="submit" disabled={mutation.isPending}>
+              {mutation.isPending ? "Saving..." : "Add Record"}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 };
 

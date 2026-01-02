@@ -1,218 +1,163 @@
-import { useState, useEffect } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import FormInput from "@/components/common/FormInput";
-import FormSelect from "@/components/common/FormSelect";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
+
+interface MaintenanceRecord {
+  id: string;
+  asset_name: string;
+  maintenance_type: string | null;
+  scheduled_date: string;
+  performed_by: string | null;
+  status: string | null;
+  notes: string | null;
+}
 
 interface MaintenanceFormProps {
-  maintenance?: any;
+  record: MaintenanceRecord | null;
   onClose: () => void;
 }
 
-const MaintenanceForm = ({ maintenance, onClose }: MaintenanceFormProps) => {
-  const { user } = useAuth();
-  const { toast } = useToast();
+const MaintenanceForm = ({ record, onClose }: MaintenanceFormProps) => {
   const queryClient = useQueryClient();
-
   const [formData, setFormData] = useState({
-    asset_name: "",
-    maintenance_type: "Scheduled",
-    scheduled_date: "",
-    performed_by: "",
-    status: "Scheduled",
-    description: "",
-    notes: "",
+    asset_name: record?.asset_name || "",
+    maintenance_type: record?.maintenance_type || "Preventive",
+    scheduled_date: record?.scheduled_date?.split("T")[0] || "",
+    performed_by: record?.performed_by || "",
+    status: record?.status || "Scheduled",
+    notes: record?.notes || "",
   });
 
-  // Fetch tech leads and admins for assignment
-  const { data: users = [] } = useQuery({
-    queryKey: ["tech-leads"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("user_id, full_name")
-        .in("role", ["tech_lead", "admin"])
-        .order("full_name");
+  const mutation = useMutation({
+    mutationFn: async (data: typeof formData) => {
+      const payload = {
+        asset_name: data.asset_name,
+        maintenance_type: data.maintenance_type,
+        scheduled_date: new Date(data.scheduled_date).toISOString(),
+        performed_by: data.performed_by || null,
+        status: data.status,
+        notes: data.notes || null,
+      };
 
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  useEffect(() => {
-    if (maintenance) {
-      setFormData({
-        asset_name: maintenance.asset_name || "",
-        maintenance_type: maintenance.maintenance_type || "Scheduled",
-        scheduled_date: maintenance.scheduled_date
-          ? new Date(maintenance.scheduled_date).toISOString().slice(0, 16)
-          : "",
-        performed_by: maintenance.performed_by || "",
-        status: maintenance.status || "Scheduled",
-        description: maintenance.description || "",
-        notes: maintenance.notes || "",
-      });
-    }
-  }, [maintenance]);
-
-  const saveMutation = useMutation({
-    mutationFn: async (data: any) => {
-      if (maintenance) {
+      if (record) {
         const { error } = await supabase
-          .from("maintenance")
-          .update(data)
-          .eq("id", maintenance.id);
+          .from("maintenance" as any)
+          .update(payload)
+          .eq("id", record.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("maintenance").insert([
-          {
-            ...data,
-            created_by: user?.id,
-          },
-        ]);
+        const { error } = await supabase.from("maintenance" as any).insert(payload);
         if (error) throw error;
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["maintenance"] });
-      toast({
-        title: "Success",
-        description: maintenance
-          ? "Maintenance record updated successfully"
-          : "Maintenance record created successfully",
-      });
+      toast.success(record ? "Maintenance updated" : "Maintenance scheduled");
       onClose();
     },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to save maintenance",
-        variant: "destructive",
-      });
+    onError: () => {
+      toast.error("Failed to save maintenance record");
     },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const submitData: any = {
-      asset_name: formData.asset_name,
-      maintenance_type: formData.maintenance_type,
-      scheduled_date: new Date(formData.scheduled_date).toISOString(),
-      status: formData.status,
-      description: formData.description,
-      notes: formData.notes,
-    };
-
-    if (formData.performed_by) {
-      submitData.performed_by = formData.performed_by;
+    if (!formData.asset_name || !formData.scheduled_date) {
+      toast.error("Asset name and scheduled date are required");
+      return;
     }
-
-    saveMutation.mutate(submitData);
+    mutation.mutate(formData);
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <FormInput
-        id="asset_name"
-        label="Asset Name"
-        value={formData.asset_name}
-        onChange={(value) => setFormData({ ...formData, asset_name: value })}
-        required
-      />
-
-      <div className="grid grid-cols-2 gap-4">
-        <FormSelect
-          id="maintenance_type"
-          label="Maintenance Type"
-          value={formData.maintenance_type}
-          onChange={(value) => setFormData({ ...formData, maintenance_type: value })}
-          options={[
-            { value: "Preventive", label: "Preventive" },
-            { value: "Corrective", label: "Corrective" },
-            { value: "Scheduled", label: "Scheduled" },
-            { value: "Emergency", label: "Emergency" },
-          ]}
-          required
-        />
-        <FormSelect
-          id="status"
-          label="Status"
-          value={formData.status}
-          onChange={(value) => setFormData({ ...formData, status: value })}
-          options={[
-            { value: "Scheduled", label: "Scheduled" },
-            { value: "In Progress", label: "In Progress" },
-            { value: "Completed", label: "Completed" },
-            { value: "Cancelled", label: "Cancelled" },
-          ]}
-          required
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="scheduled_date">Scheduled Date & Time</Label>
-        <input
-          type="datetime-local"
-          id="scheduled_date"
-          value={formData.scheduled_date}
-          onChange={(e) =>
-            setFormData({ ...formData, scheduled_date: e.target.value })
-          }
-          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-          required
-        />
-      </div>
-
-      <FormSelect
-        id="performed_by"
-        label="Performed By"
-        value={formData.performed_by}
-        onChange={(value) => setFormData({ ...formData, performed_by: value })}
-        options={[
-          { value: "", label: "Select a user" },
-          ...users.map((u) => ({
-            value: u.user_id,
-            label: u.full_name,
-          })),
-        ]}
-      />
-
-      <div className="space-y-2">
-        <Label htmlFor="description">Description</Label>
-        <Textarea
-          id="description"
-          value={formData.description}
-          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-          placeholder="Maintenance description..."
-          rows={3}
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="notes">Notes</Label>
-        <Textarea
-          id="notes"
-          value={formData.notes}
-          onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-          placeholder="Additional notes..."
-          rows={3}
-        />
-      </div>
-
-      <div className="flex gap-2 justify-end">
-        <Button type="button" variant="outline" onClick={onClose}>
-          Cancel
-        </Button>
-        <Button type="submit" disabled={saveMutation.isPending}>
-          {saveMutation.isPending ? "Saving..." : maintenance ? "Update" : "Create"}
-        </Button>
-      </div>
-    </form>
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{record ? "Edit Maintenance" : "Schedule Maintenance"}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="asset_name">Asset Name *</Label>
+              <Input
+                id="asset_name"
+                value={formData.asset_name}
+                onChange={(e) => setFormData({ ...formData, asset_name: e.target.value })}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="maintenance_type">Type</Label>
+              <Select value={formData.maintenance_type} onValueChange={(v) => setFormData({ ...formData, maintenance_type: v })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Preventive">Preventive</SelectItem>
+                  <SelectItem value="Corrective">Corrective</SelectItem>
+                  <SelectItem value="Predictive">Predictive</SelectItem>
+                  <SelectItem value="Emergency">Emergency</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="scheduled_date">Scheduled Date *</Label>
+              <Input
+                id="scheduled_date"
+                type="date"
+                value={formData.scheduled_date}
+                onChange={(e) => setFormData({ ...formData, scheduled_date: e.target.value })}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="performed_by">Performed By</Label>
+              <Input
+                id="performed_by"
+                value={formData.performed_by}
+                onChange={(e) => setFormData({ ...formData, performed_by: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="status">Status</Label>
+              <Select value={formData.status} onValueChange={(v) => setFormData({ ...formData, status: v })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Scheduled">Scheduled</SelectItem>
+                  <SelectItem value="In Progress">In Progress</SelectItem>
+                  <SelectItem value="Completed">Completed</SelectItem>
+                  <SelectItem value="Cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div>
+            <Label htmlFor="notes">Notes</Label>
+            <Textarea
+              id="notes"
+              value={formData.notes}
+              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              rows={3}
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+            <Button type="submit" disabled={mutation.isPending}>
+              {mutation.isPending ? "Saving..." : record ? "Update" : "Schedule"}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 };
 
