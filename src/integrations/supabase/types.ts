@@ -1365,10 +1365,12 @@ export type Database = {
       }
       meetings: {
         Row: {
+          account_id: string | null
           attendees: Json | null
           contact_id: string | null
           created_at: string
           created_by: string | null
+          deal_id: string | null
           description: string | null
           end_time: string
           id: string
@@ -1382,10 +1384,12 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          account_id?: string | null
           attendees?: Json | null
           contact_id?: string | null
           created_at?: string
           created_by?: string | null
+          deal_id?: string | null
           description?: string | null
           end_time: string
           id?: string
@@ -1399,10 +1403,12 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          account_id?: string | null
           attendees?: Json | null
           contact_id?: string | null
           created_at?: string
           created_by?: string | null
+          deal_id?: string | null
           description?: string | null
           end_time?: string
           id?: string
@@ -1417,10 +1423,24 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "meetings_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "meetings_contact_id_fkey"
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meetings_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
             referencedColumns: ["id"]
           },
           {

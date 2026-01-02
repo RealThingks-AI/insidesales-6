@@ -52,6 +52,8 @@ interface TaskListViewProps {
   onToggleComplete: (task: Task) => void;
   initialStatusFilter?: string;
   initialOwnerFilter?: string;
+  selectedTasks?: string[];
+  onSelectionChange?: (selectedIds: string[]) => void;
 }
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
@@ -85,6 +87,8 @@ export const TaskListView = ({
   onToggleComplete,
   initialStatusFilter = 'all',
   initialOwnerFilter = 'all',
+  selectedTasks: externalSelectedTasks,
+  onSelectionChange,
 }: TaskListViewProps) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>(initialStatusFilter);
@@ -95,6 +99,13 @@ export const TaskListView = ({
   const [viewingTask, setViewingTask] = useState<Task | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
+  
+  // Internal selection state - used when no external selection is provided
+  const [internalSelectedTasks, setInternalSelectedTasks] = useState<string[]>([]);
+  
+  // Use external selection if provided, otherwise use internal
+  const selectedTasks = externalSelectedTasks ?? internalSelectedTasks;
+  const setSelectedTasks = onSelectionChange ?? setInternalSelectedTasks;
 
   // Sync statusFilter when initialStatusFilter prop changes (from URL)
   useEffect(() => {
@@ -278,6 +289,21 @@ export const TaskListView = ({
           <Table>
             <TableHeader>
               <TableRow className="sticky top-0 z-20 bg-muted border-b-2">
+                <TableHead className="w-10 font-bold text-foreground">
+                  <Checkbox
+                    checked={paginatedTasks.length > 0 && paginatedTasks.every(t => selectedTasks.includes(t.id))}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        const newSelected = [...new Set([...selectedTasks, ...paginatedTasks.map(t => t.id)])];
+                        setSelectedTasks(newSelected);
+                      } else {
+                        const paginatedIds = paginatedTasks.map(t => t.id);
+                        setSelectedTasks(selectedTasks.filter(id => !paginatedIds.includes(id)));
+                      }
+                    }}
+                    aria-label="Select all on page"
+                  />
+                </TableHead>
                 <TableHead className="w-10 font-bold text-foreground"></TableHead>
                 <TableHead className="font-bold text-foreground px-4 py-3">Task</TableHead>
                 <TableHead className="font-bold text-foreground px-4 py-3">Status</TableHead>
@@ -292,7 +318,7 @@ export const TaskListView = ({
             <TableBody>
               {paginatedTasks.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-12">
+                  <TableCell colSpan={10} className="text-center py-12">
                     <div className="flex flex-col items-center gap-3">
                       <ListTodo className="w-10 h-10 text-muted-foreground/50" />
                       <div>
@@ -321,6 +347,19 @@ export const TaskListView = ({
                         dueDateInfo.isOverdue ? 'bg-red-50 dark:bg-red-900/10' : ''
                       }`}
                     >
+                      <TableCell className="px-4 py-3">
+                        <Checkbox
+                          checked={selectedTasks.includes(task.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedTasks([...selectedTasks, task.id]);
+                            } else {
+                              setSelectedTasks(selectedTasks.filter(id => id !== task.id));
+                            }
+                          }}
+                          aria-label={`Select ${task.title}`}
+                        />
+                      </TableCell>
                       <TableCell className="px-4 py-3">
                         <Checkbox
                           checked={task.status === 'completed'}
