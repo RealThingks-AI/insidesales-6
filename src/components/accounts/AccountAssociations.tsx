@@ -4,8 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { User, Briefcase, ExternalLink, Loader2, Mail, Phone, Plus, UserPlus } from "lucide-react";
+import { User, Briefcase, ExternalLink, Loader2, Mail, Phone, Plus, UserPlus, Calendar, CheckSquare } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { format } from "date-fns";
 
 interface Contact {
   id: string;
@@ -31,6 +32,21 @@ interface Lead {
   company_name?: string;
 }
 
+interface Task {
+  id: string;
+  title: string;
+  status: string;
+  priority: string;
+  due_date?: string | null;
+}
+
+interface Meeting {
+  id: string;
+  subject: string;
+  start_time: string;
+  status: string;
+}
+
 interface AccountAssociationsProps {
   accountId: string;
   companyName: string;
@@ -41,6 +57,8 @@ export const AccountAssociations = ({ accountId, companyName }: AccountAssociati
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -75,6 +93,26 @@ export const AccountAssociations = ({ accountId, companyName }: AccountAssociati
         .order('created_time', { ascending: false });
 
       setLeads(leadData || []);
+
+      // Fetch tasks by account_id
+      const { data: taskData } = await supabase
+        .from('tasks')
+        .select('id, title, status, priority, due_date')
+        .eq('account_id', accountId)
+        .order('created_at', { ascending: false })
+        .limit(6);
+
+      setTasks(taskData || []);
+
+      // Fetch meetings by account_id
+      const { data: meetingData } = await supabase
+        .from('meetings')
+        .select('id, subject, start_time, status')
+        .eq('account_id', accountId)
+        .order('start_time', { ascending: false })
+        .limit(6);
+
+      setMeetings(meetingData || []);
     } catch (error) {
       console.error('Error fetching associations:', error);
     } finally {
