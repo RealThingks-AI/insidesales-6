@@ -1,5 +1,9 @@
 import { useState, useMemo } from "react";
-import { X, Plus, Clock, History, ListTodo, ChevronDown, ChevronRight, Eye, Pencil, ArrowRight, RefreshCw, Check, ArrowUpDown, MessageSquarePlus, Phone, Mail, Calendar, FileText, User } from "lucide-react";
+import { X, Plus, Clock, History, ListTodo, ChevronDown, ChevronRight, Eye, Pencil, ArrowRight, RefreshCw, Check, ArrowUpDown, MessageSquarePlus, Phone, Mail, Calendar, FileText, User, MoreHorizontal, Trash2, CheckCircle, Handshake } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
+import { useAllUsers } from "@/hooks/useUserDisplayNames";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -139,17 +143,23 @@ const parseChangeSummary = (action: string, details: Record<string, unknown> | n
  
  export const DealExpandedPanel = ({ deal, onClose, onOpenActionItemModal }: DealExpandedPanelProps) => {
   const { user } = useAuth();
-  const [historyOpen, setHistoryOpen] = useState(true);
-  const [actionsOpen, setActionsOpen] = useState(true);
-   const [detailLogId, setDetailLogId] = useState<string | null>(null);
-   const [actionSortBy, setActionSortBy] = useState<'due_date' | 'priority'>('due_date');
-   const queryClient = useQueryClient();
-   
-   // Add Log dialog state
-   const [addLogOpen, setAddLogOpen] = useState(false);
-   const [logType, setLogType] = useState<LogType>('Note');
-   const [logMessage, setLogMessage] = useState('');
-   const [isSavingLog, setIsSavingLog] = useState(false);
+   const [historyOpen, setHistoryOpen] = useState(true);
+   const [actionsOpen, setActionsOpen] = useState(true);
+    const [detailLogId, setDetailLogId] = useState<string | null>(null);
+    const [actionSortBy, setActionSortBy] = useState<'due_date' | 'priority'>('due_date');
+    const queryClient = useQueryClient();
+    
+    // Add Log dialog state
+    const [addLogOpen, setAddLogOpen] = useState(false);
+    const [logType, setLogType] = useState<LogType>('Note');
+    const [logMessage, setLogMessage] = useState('');
+    const [isSavingLog, setIsSavingLog] = useState(false);
+
+    // Action items inline editing state
+    const [selectedActionIds, setSelectedActionIds] = useState<string[]>([]);
+    const [editingDateId, setEditingDateId] = useState<string | null>(null);
+
+    const { users, getUserDisplayName } = useAllUsers();
 
   // Fetch audit logs for the deal
    const { data: auditLogs = [], isLoading: logsLoading } = useQuery({
@@ -276,13 +286,76 @@ const parseChangeSummary = (action: string, details: Record<string, unknown> | n
     }
   };
 
-   const handleActionItemClick = (actionItem: ActionItem) => {
-     if (onOpenActionItemModal) {
-       onOpenActionItemModal(actionItem);
-    }
-  };
+    const handleActionItemClick = (actionItem: ActionItem) => {
+      if (onOpenActionItemModal) {
+        onOpenActionItemModal(actionItem);
+     }
+   };
 
-   const selectedLog = detailLogId ? auditLogs.find(l => l.id === detailLogId) : null;
+    // Inline update handlers for action items
+    const invalidateActionItems = () => {
+      queryClient.invalidateQueries({ queryKey: ['deal-action-items-unified', deal.id] });
+    };
+
+    const handleStatusChange = async (id: string, status: string) => {
+      await supabase.from('action_items').update({ status, updated_at: new Date().toISOString() }).eq('id', id);
+      invalidateActionItems();
+    };
+
+    const handlePriorityChange = async (id: string, priority: string) => {
+      await supabase.from('action_items').update({ priority, updated_at: new Date().toISOString() }).eq('id', id);
+      invalidateActionItems();
+    };
+
+    const handleAssignedToChange = async (id: string, userId: string | null) => {
+      await supabase.from('action_items').update({ assigned_to: userId, updated_at: new Date().toISOString() }).eq('id', id);
+      invalidateActionItems();
+    };
+
+    const handleDueDateChange = async (id: string, date: string | null) => {
+      await supabase.from('action_items').update({ due_date: date, updated_at: new Date().toISOString() }).eq('id', id);
+      invalidateActionItems();
+    };
+
+    const handleDeleteActionItem = async (id: string) => {
+      await supabase.from('action_items').delete().eq('id', id);
+      invalidateActionItems();
+    };
+
+    const handleDueDateBlur = (itemId: string, value: string) => {
+      handleDueDateChange(itemId, value || null);
+      setEditingDateId(null);
+    };
+
+    const toggleAllActions = () => {
+      if (selectedActionIds.length === sortedActionItems.length) {
+        setSelectedActionIds([]);
+      } else {
+        setSelectedActionIds(sortedActionItems.map(i => i.id));
+      }
+    };
+
+    const toggleActionItem = (id: string) => {
+      setSelectedActionIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+    };
+
+    const allActionsSelected = sortedActionItems.length > 0 && selectedActionIds.length === sortedActionItems.length;
+    const someActionsSelected = selectedActionIds.length > 0 && selectedActionIds.length < sortedActionItems.length;
+
+    const statusDotColor: Record<string, string> = {
+      'Open': 'bg-blue-500',
+      'In Progress': 'bg-yellow-500',
+      'Completed': 'bg-green-500',
+      'Cancelled': 'bg-muted-foreground',
+    };
+
+    const priorityDotColor: Record<string, string> = {
+      'High': 'bg-red-500',
+      'Medium': 'bg-yellow-500',
+      'Low': 'bg-blue-500',
+    };
+
+    const selectedLog = detailLogId ? auditLogs.find(l => l.id === detailLogId) : null;
 
   return (
      <>
@@ -473,67 +546,154 @@ const parseChangeSummary = (action: string, details: Record<string, unknown> | n
                     ) : (
                       <Table>
                         <TableHeader>
-                          <TableRow className="text-[11px]">
-                            <TableHead className="h-7 px-2 text-[11px]">Title</TableHead>
-                            <TableHead className="h-7 px-2 text-[11px] w-20">Assigned</TableHead>
-                            <TableHead className="h-7 px-2 text-[11px] w-14">Status</TableHead>
-                            <TableHead className="h-7 px-2 text-[11px] w-14">Priority</TableHead>
-                            <TableHead className="h-7 px-2 text-[11px] w-16">Due</TableHead>
-                            <TableHead className="h-7 px-2 text-[11px] w-10"></TableHead>
+                          <TableRow className="text-[11px] bg-muted/50">
+                            <TableHead className="h-7 px-1 w-7">
+                              <div className="flex items-center justify-center">
+                                <Checkbox checked={allActionsSelected} onCheckedChange={toggleAllActions} className={someActionsSelected ? 'data-[state=checked]:bg-primary' : ''} />
+                              </div>
+                            </TableHead>
+                            <TableHead className="h-7 px-2 text-[11px] font-bold">Task</TableHead>
+                            <TableHead className="h-7 px-2 text-[11px] font-bold w-20">Assigned To</TableHead>
+                            <TableHead className="h-7 px-2 text-[11px] font-bold w-16">Due Date</TableHead>
+                            <TableHead className="h-7 px-1 text-[11px] font-bold text-center" style={{ width: '6.67%', maxWidth: '6.67%' }}>Status</TableHead>
+                            <TableHead className="h-7 px-1 text-[11px] font-bold text-center" style={{ width: '6.67%', maxWidth: '6.67%' }}>Priority</TableHead>
+                            <TableHead className="h-7 px-1 text-[11px] font-bold text-center" style={{ width: '6.67%', maxWidth: '6.67%' }}>Module</TableHead>
+                            <TableHead className="h-7 px-1 w-8"></TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {sortedActionItems.map((item) => (
                             <TableRow 
                               key={item.id} 
-                              className="text-xs cursor-pointer hover:bg-muted/30"
+                              className={cn("text-xs group cursor-pointer hover:bg-muted/30", selectedActionIds.includes(item.id) && 'bg-primary/5')}
                               onClick={() => handleActionItemClick(item)}
                             >
-                              <TableCell className="py-1.5 px-2 max-w-[120px]">
-                                <TooltipProvider>
+                              {/* Checkbox */}
+                              <TableCell onClick={e => e.stopPropagation()} className="py-1.5 px-1 w-7">
+                                <div className="flex items-center justify-center">
+                                  <Checkbox checked={selectedActionIds.includes(item.id)} onCheckedChange={() => toggleActionItem(item.id)} />
+                                </div>
+                              </TableCell>
+
+                              {/* Task */}
+                              <TableCell className="py-1.5 px-2">
+                                <button onClick={e => { e.stopPropagation(); handleActionItemClick(item); }} className="hover:underline text-left whitespace-normal break-words text-[#2e538e] font-normal text-xs">
+                                  {item.title}
+                                </button>
+                              </TableCell>
+
+                              {/* Assigned To */}
+                              <TableCell onClick={e => e.stopPropagation()} className="py-1.5 px-2 text-xs">
+                                <Select value={item.assigned_to || 'unassigned'} onValueChange={value => handleAssignedToChange(item.id, value === 'unassigned' ? null : value)}>
+                                  <SelectTrigger className="h-6 w-auto min-w-0 text-[11px] border-0 bg-transparent hover:bg-muted/50 px-0 [&>svg]:hidden">
+                                    <SelectValue>
+                                      <span className="truncate">{item.assigned_to ? getUserDisplayName(item.assigned_to) : 'Unassigned'}</span>
+                                    </SelectValue>
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="unassigned">Unassigned</SelectItem>
+                                    {users.map(u => <SelectItem key={u.id} value={u.id}>{u.display_name}</SelectItem>)}
+                                  </SelectContent>
+                                </Select>
+                              </TableCell>
+
+                              {/* Due Date */}
+                              <TableCell onClick={e => e.stopPropagation()} className="py-1.5 px-2 text-xs">
+                                {editingDateId === item.id ? (
+                                  <Input type="date" defaultValue={item.due_date || ''} onBlur={e => handleDueDateBlur(item.id, e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleDueDateBlur(item.id, (e.target as HTMLInputElement).value); else if (e.key === 'Escape') setEditingDateId(null); }} autoFocus className="h-6 w-[110px] text-[11px]" />
+                                ) : (
+                                  <button onClick={() => setEditingDateId(item.id)} className="hover:underline text-[11px]">
+                                    {item.due_date ? format(new Date(item.due_date), 'dd-MM-yy') : '—'}
+                                  </button>
+                                )}
+                              </TableCell>
+
+                              {/* Status - dot only */}
+                              <TableCell onClick={e => e.stopPropagation()} className="py-1.5 px-1 text-center" style={{ width: '6.67%', maxWidth: '6.67%' }}>
+                                <TooltipProvider delayDuration={200}>
                                   <Tooltip>
                                     <TooltipTrigger asChild>
-                                      <span className="truncate block">{item.title}</span>
+                                      <div className="flex justify-center">
+                                        <Select value={item.status} onValueChange={value => handleStatusChange(item.id, value)}>
+                                          <SelectTrigger className="h-6 w-6 min-w-0 border-0 bg-transparent hover:bg-muted/50 px-0 justify-center [&>svg]:hidden">
+                                            <span className={cn('w-2 h-2 rounded-full flex-shrink-0', statusDotColor[item.status] || 'bg-muted-foreground')} />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="Open"><div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-blue-500" />Open</div></SelectItem>
+                                            <SelectItem value="In Progress"><div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-yellow-500" />In Progress</div></SelectItem>
+                                            <SelectItem value="Completed"><div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-green-500" />Completed</div></SelectItem>
+                                            <SelectItem value="Cancelled"><div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-muted-foreground" />Cancelled</div></SelectItem>
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
                                     </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p className="max-w-[200px]">{item.title}</p>
-                                    </TooltipContent>
+                                    <TooltipContent side="top">{item.status}</TooltipContent>
                                   </Tooltip>
                                 </TooltipProvider>
                               </TableCell>
-                              <TableCell className="py-1.5 px-2 text-[10px] text-muted-foreground max-w-[80px] truncate">
-                                {item.assigned_to ? (
-                                  <span className="flex items-center gap-1">
-                                    <User className="h-2.5 w-2.5" />
-                                    {displayNames[item.assigned_to] || '...'}
-                                  </span>
-                                ) : (
-                                  <span className="text-muted-foreground/50">Unassigned</span>
-                                )}
+
+                              {/* Priority - dot only */}
+                              <TableCell onClick={e => e.stopPropagation()} className="py-1.5 px-1 text-center" style={{ width: '6.67%', maxWidth: '6.67%' }}>
+                                <TooltipProvider delayDuration={200}>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <div className="flex justify-center">
+                                        <Select value={item.priority} onValueChange={value => handlePriorityChange(item.id, value)}>
+                                          <SelectTrigger className="h-6 w-6 min-w-0 border-0 bg-transparent hover:bg-muted/50 px-0 justify-center [&>svg]:hidden">
+                                            <span className={cn('w-2 h-2 rounded-full flex-shrink-0', priorityDotColor[item.priority] || 'bg-muted-foreground')} />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="High"><div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-red-500" />High</div></SelectItem>
+                                            <SelectItem value="Medium"><div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-yellow-500" />Medium</div></SelectItem>
+                                            <SelectItem value="Low"><div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-blue-500" />Low</div></SelectItem>
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top">{item.priority}</TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
                               </TableCell>
-                              <TableCell className="py-1.5 px-2">
-                                <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                                  item.status === 'Completed' ? 'bg-green-100 text-green-700' :
-                                  item.status === 'In Progress' ? 'bg-yellow-100 text-yellow-700' :
-                                  'bg-blue-100 text-blue-700'
-                                }`}>
-                                  {item.status}
-                                </span>
+
+                              {/* Module - deal icon */}
+                              <TableCell className="py-1.5 px-1 text-center" style={{ width: '6.67%', maxWidth: '6.67%' }}>
+                                <TooltipProvider delayDuration={200}>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <div className="flex justify-center">
+                                        <Handshake className="h-3.5 w-3.5 text-[#2e538e]" />
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top">Deal</TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
                               </TableCell>
-                              <TableCell className="py-1.5 px-2">
-                                <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                                  item.priority === 'High' ? 'bg-red-100 text-red-700' :
-                                  item.priority === 'Medium' ? 'bg-yellow-100 text-yellow-700' :
-                                  'bg-gray-100 text-gray-700'
-                                }`}>
-                                  {item.priority}
-                                </span>
-                              </TableCell>
-                              <TableCell className="py-1.5 px-2 text-[10px] text-muted-foreground">
-                                {item.due_date ? format(new Date(item.due_date), 'dd-MM-yy') : '-'}
-                              </TableCell>
-                              <TableCell className="py-1.5 px-2">
-                                <Pencil className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+
+                              {/* Actions */}
+                              <TableCell onClick={e => e.stopPropagation()} className="py-1.5 px-1">
+                                <div className="opacity-0 group-hover:opacity-100 transition-opacity flex justify-center">
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-6 w-6 p-0">
+                                        <MoreHorizontal className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      <DropdownMenuItem onClick={() => handleActionItemClick(item)}>
+                                        <Pencil className="h-3.5 w-3.5 mr-2" />Edit
+                                      </DropdownMenuItem>
+                                      {item.status !== 'Completed' && (
+                                        <DropdownMenuItem onClick={() => handleStatusChange(item.id, 'Completed')}>
+                                          <CheckCircle className="h-3.5 w-3.5 mr-2" />Mark Complete
+                                        </DropdownMenuItem>
+                                      )}
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem onClick={() => handleDeleteActionItem(item.id)} className="text-destructive focus:text-destructive">
+                                        <Trash2 className="h-3.5 w-3.5 mr-2" />Delete
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </div>
                               </TableCell>
                             </TableRow>
                           ))}
