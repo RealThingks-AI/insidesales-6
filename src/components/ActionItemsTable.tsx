@@ -294,8 +294,8 @@ export function ActionItemsTable({
         <TableHeader className="sticky top-0 z-10">
           <TableRow className="bg-muted/50 border-b-2 border-border">
             {columns.map(col => <TableHead key={col.field} className={cn('relative text-sm font-bold bg-muted/50 py-3 h-11 text-foreground', col.compact ? 'px-1 text-center' : 'px-3 text-left', col.sortable && 'cursor-pointer hover:bg-muted/80', sortField === col.field && 'bg-accent', col.field === 'checkbox' && 'w-10', col.field === 'actions' && 'w-[60px] px-2')} style={{
-            ...(col.field !== 'checkbox' && col.field !== 'actions' ? { width: `${col.width}px` } : {}),
-            ...(col.compact ? { maxWidth: `${col.width}px` } : {}),
+            ...(col.field !== 'checkbox' && col.field !== 'actions' && !col.compact ? { width: `${col.width}px` } : {}),
+            ...(col.compact ? { width: '6.67%', maxWidth: '6.67%' } : {}),
             ...(col.field === 'title' ? { minWidth: '200px' } : {}),
           }} onClick={() => col.sortable && onSort?.(col.field)}>
                 {col.field === 'checkbox' ? <div className="flex items-center justify-center h-full">
@@ -368,7 +368,7 @@ export function ActionItemsTable({
                 </TableCell>
 
                 {/* Status - dot only */}
-                <TableCell onClick={e => e.stopPropagation()} className="py-2 px-1 text-sm text-center" style={{ width: '36px', maxWidth: '36px' }}>
+                <TableCell onClick={e => e.stopPropagation()} className="py-2 px-1 text-sm text-center" style={{ width: '6.67%', maxWidth: '6.67%' }}>
                   <TooltipProvider delayDuration={200}>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -412,7 +412,7 @@ export function ActionItemsTable({
                 </TableCell>
 
                 {/* Priority - dot only */}
-                <TableCell onClick={e => e.stopPropagation()} className="py-2 px-1 text-sm text-center" style={{ width: '36px', maxWidth: '36px' }}>
+                <TableCell onClick={e => e.stopPropagation()} className="py-2 px-1 text-sm text-center" style={{ width: '6.67%', maxWidth: '6.67%' }}>
                   <TooltipProvider delayDuration={200}>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -450,7 +450,7 @@ export function ActionItemsTable({
                 </TableCell>
 
                 {/* Module - icon only */}
-                <TableCell className="py-2 px-1 text-sm text-center" style={{ width: '36px', maxWidth: '36px' }}>
+                <TableCell className="py-2 px-1 text-sm text-center" style={{ width: '6.67%', maxWidth: '6.67%' }}>
                   {item.module_id && linkedRecordName ? (
                     <TooltipProvider delayDuration={200}>
                       <Tooltip>
