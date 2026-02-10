@@ -1,12 +1,27 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, lazy, Suspense } from "react";
 import { useSearchParams } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { User, Shield, Mail } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useUserRole } from "@/hooks/useUserRole";
-import AccountSettingsPage from "@/components/settings/AccountSettingsPage";
-import AdminSettingsPage from "@/components/settings/AdminSettingsPage";
-import EmailCenterPage from "@/components/settings/EmailCenterPage";
+import { Skeleton } from "@/components/ui/skeleton";
+
+// Lazy load heavy settings pages
+const AccountSettingsPage = lazy(() => import("@/components/settings/AccountSettingsPage"));
+const AdminSettingsPage = lazy(() => import("@/components/settings/AdminSettingsPage"));
+const EmailCenterPage = lazy(() => import("@/components/settings/EmailCenterPage"));
+
+// Loading skeleton for settings content
+const SettingsContentSkeleton = () => (
+  <div className="space-y-6">
+    <Skeleton className="h-8 w-48" />
+    <div className="space-y-4">
+      <Skeleton className="h-24 w-full" />
+      <Skeleton className="h-24 w-full" />
+      <Skeleton className="h-24 w-full" />
+    </div>
+  </div>
+);
 
 interface SettingsTab {
   id: string;
@@ -120,8 +135,8 @@ const Settings = () => {
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
       {/* Tab Navigation */}
-      <div className="flex-shrink-0 border-b bg-background">
-        <div className="px-6 pt-4">
+      <div className="flex-shrink-0 border-b bg-background h-16 flex items-end">
+        <div className="px-6">
           <nav className="flex gap-1" role="tablist" aria-label="Settings sections">
             {visibleTabs.map((tab, index) => {
               const Icon = tab.icon;
@@ -163,7 +178,9 @@ const Settings = () => {
           aria-labelledby={`tab-${activeTab}`}
           tabIndex={0}
         >
-          {renderContent()}
+          <Suspense fallback={<SettingsContentSkeleton />}>
+            {renderContent()}
+          </Suspense>
         </div>
       </ScrollArea>
     </div>
