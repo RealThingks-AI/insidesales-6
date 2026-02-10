@@ -159,6 +159,11 @@ const parseChangeSummary = (action: string, details: Record<string, unknown> | n
     const [selectedActionIds, setSelectedActionIds] = useState<string[]>([]);
     const [editingDateId, setEditingDateId] = useState<string | null>(null);
 
+    // History section state
+    const [selectedLogIds, setSelectedLogIds] = useState<string[]>([]);
+    const [historyTypeFilter, setHistoryTypeFilter] = useState<string>('All');
+    const [historySortDirection, setHistorySortDirection] = useState<'desc' | 'asc'>('desc');
+
     const { users, getUserDisplayName } = useAllUsers();
 
   // Fetch audit logs for the deal
@@ -258,10 +263,70 @@ const parseChangeSummary = (action: string, details: Record<string, unknown> | n
      }
    };
 
-   // Toggle sort for action items
-   const toggleActionSort = () => {
-     setActionSortBy(prev => prev === 'due_date' ? 'priority' : 'due_date');
-   };
+    // History delete handlers
+    const handleDeleteLog = async (id: string) => {
+      await supabase.from('security_audit_log').delete().eq('id', id);
+      queryClient.invalidateQueries({ queryKey: ['deal-audit-logs', deal.id] });
+      setSelectedLogIds(prev => prev.filter(i => i !== id));
+    };
+
+    const handleBulkDeleteLogs = async () => {
+      for (const id of selectedLogIds) {
+        await supabase.from('security_audit_log').delete().eq('id', id);
+      }
+      queryClient.invalidateQueries({ queryKey: ['deal-audit-logs', deal.id] });
+      setSelectedLogIds([]);
+    };
+
+    // History filtering and sorting
+    const filteredSortedLogs = useMemo(() => {
+      let logs = [...auditLogs];
+      if (historyTypeFilter !== 'All') {
+        logs = logs.filter(log => {
+          const action = log.action.toUpperCase();
+          if (historyTypeFilter === 'System') return !['NOTE', 'CALL', 'MEETING', 'EMAIL'].includes(action);
+          return action === historyTypeFilter.toUpperCase();
+        });
+      }
+      logs.sort((a, b) => {
+        const diff = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        return historySortDirection === 'asc' ? diff : -diff;
+      });
+      return logs;
+    }, [auditLogs, historyTypeFilter, historySortDirection]);
+
+    const toggleAllLogs = () => {
+      if (selectedLogIds.length === filteredSortedLogs.length) {
+        setSelectedLogIds([]);
+      } else {
+        setSelectedLogIds(filteredSortedLogs.map(l => l.id));
+      }
+    };
+
+    const toggleLogItem = (id: string) => {
+      setSelectedLogIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+    };
+
+    const allLogsSelected = filteredSortedLogs.length > 0 && selectedLogIds.length === filteredSortedLogs.length;
+    const someLogsSelected = selectedLogIds.length > 0 && selectedLogIds.length < filteredSortedLogs.length;
+
+    const typeDotColor: Record<string, string> = {
+      'NOTE': 'bg-yellow-500',
+      'CALL': 'bg-blue-500',
+      'MEETING': 'bg-purple-500',
+      'EMAIL': 'bg-green-500',
+      'update': 'bg-gray-400',
+      'create': 'bg-emerald-500',
+    };
+
+    const getTypeDotColor = (action: string) => {
+      return typeDotColor[action.toUpperCase()] || typeDotColor[action.toLowerCase()] || 'bg-muted-foreground';
+    };
+
+    // Toggle sort for action items
+    const toggleActionSort = () => {
+      setActionSortBy(prev => prev === 'due_date' ? 'priority' : 'due_date');
+    };
 
    // Sort action items
    const sortedActionItems = useMemo(() => {
@@ -378,110 +443,181 @@ const parseChangeSummary = (action: string, details: Record<string, unknown> | n
 
          {/* Content */}
          <div className="flex-1 min-h-0 flex flex-col overflow-hidden gap-1">
-           {/* History Section - Collapsible with flex-1 for equal height */}
-           <Collapsible open={historyOpen} onOpenChange={setHistoryOpen} className={`flex flex-col ${historyOpen ? 'flex-1' : ''} min-h-0`}>
-             <CollapsibleTrigger asChild>
-              <button className="w-full flex items-center gap-1.5 px-3 py-2 bg-muted/20 hover:bg-muted/40 transition-colors border-b border-border/20 group">
-                 {historyOpen ? (
-                   <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-                 ) : (
-                   <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-                 )}
-                 <History className="h-3.5 w-3.5 text-muted-foreground" />
-                 <span className="text-xs font-medium text-foreground">History</span>
-                 <span className="text-xs text-muted-foreground ml-1">({auditLogs.length})</span>
-                 <Button
-                   variant="ghost"
-                   size="sm"
-                   className="ml-auto h-5 px-1.5 text-[10px] gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                   onClick={(e) => {
-                     e.stopPropagation();
-                     setAddLogOpen(true);
-                   }}
-                 >
-                   <MessageSquarePlus className="h-3 w-3" />
-                   Add Log
-                 </Button>
-                 <Button
-                   variant="ghost"
-                   size="sm"
-                   className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                   onClick={(e) => {
-                     e.stopPropagation();
-                     handleRefreshHistory();
-                   }}
-                 >
-                   <RefreshCw className={`h-3 w-3 text-muted-foreground ${logsLoading ? 'animate-spin' : ''}`} />
-                 </Button>
-               </button>
-             </CollapsibleTrigger>
-            <CollapsibleContent className="flex-1 min-h-0 collapsible-content data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up">
-               <div className="h-[280px] overflow-y-auto">
-                    {isLoading ? (
-                      <div className="flex items-center justify-center py-6">
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
-                      </div>
-                    ) : auditLogs.length === 0 ? (
-                      <div className="flex items-center justify-center py-6 text-muted-foreground">
-                        <History className="h-4 w-4 mr-2" />
-                        <span className="text-xs">No history yet</span>
-                      </div>
-                    ) : (
-                      <Table>
-                        <TableHeader>
-                          <TableRow className="text-[11px]">
-                             <TableHead className="h-7 px-2 text-[11px] w-28">Time</TableHead>
-                             <TableHead className="h-7 px-2 text-[11px] w-16">Type</TableHead>
-                             <TableHead className="h-7 px-2 text-[11px] w-20">By</TableHead>
-                             <TableHead className="h-7 px-2 text-[11px]">Changes</TableHead>
-                             <TableHead className="h-7 px-2 text-[11px] w-8"></TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {auditLogs.map((log) => (
-                            <TableRow key={log.id} className="text-xs hover:bg-muted/30">
-                              <TableCell className="py-1.5 px-2 text-[10px] text-muted-foreground whitespace-nowrap">
-                                {formatHistoryDateTime(new Date(log.created_at))}
-                              </TableCell>
-                              <TableCell className="py-1.5 px-2">
-                                <div className="flex items-center gap-1">
-                                  {log.action === 'NOTE' || log.action === 'CALL' || log.action === 'MEETING' || log.action === 'EMAIL' ? (
-                                    <>
-                                      {log.action === 'CALL' && <Phone className="h-3 w-3 text-blue-500" />}
-                                      {log.action === 'MEETING' && <Calendar className="h-3 w-3 text-purple-500" />}
-                                      {log.action === 'EMAIL' && <Mail className="h-3 w-3 text-green-500" />}
-                                      {log.action === 'NOTE' && <FileText className="h-3 w-3 text-yellow-500" />}
-                                    </>
-                                  ) : (
-                                    <Clock className="h-3 w-3 text-muted-foreground" />
-                                  )}
-                                  <span className="capitalize text-[10px]">{log.action.toLowerCase()}</span>
-                                </div>
-                              </TableCell>
+            {/* History Section - Collapsible with flex-1 for equal height */}
+            <Collapsible open={historyOpen} onOpenChange={setHistoryOpen} className={`flex flex-col ${historyOpen ? 'flex-1' : ''} min-h-0`}>
+              <CollapsibleTrigger asChild>
+               <button className="w-full flex items-center gap-1.5 px-3 py-2 bg-muted/20 hover:bg-muted/40 transition-colors border-b border-border/20 group">
+                  {historyOpen ? (
+                    <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                  ) : (
+                    <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                  )}
+                  <History className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-xs font-medium text-foreground">History</span>
+                  <span className="text-xs text-muted-foreground ml-1">({filteredSortedLogs.length})</span>
+                  {/* Type filter */}
+                  <div onClick={e => e.stopPropagation()} className="ml-auto">
+                    <Select value={historyTypeFilter} onValueChange={setHistoryTypeFilter}>
+                      <SelectTrigger className="h-5 w-auto min-w-0 text-[10px] border-0 bg-transparent hover:bg-muted/50 px-1.5 gap-1 [&>svg]:h-3 [&>svg]:w-3">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="All">All</SelectItem>
+                        <SelectItem value="Note">Note</SelectItem>
+                        <SelectItem value="Call">Call</SelectItem>
+                        <SelectItem value="Meeting">Meeting</SelectItem>
+                        <SelectItem value="Email">Email</SelectItem>
+                        <SelectItem value="System">System</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {/* Sort toggle */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setHistorySortDirection(prev => prev === 'desc' ? 'asc' : 'desc');
+                    }}
+                    title={`Sort ${historySortDirection === 'desc' ? 'oldest first' : 'newest first'}`}
+                  >
+                    <ArrowUpDown className="h-3 w-3 text-muted-foreground" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-5 px-1.5 text-[10px] gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setAddLogOpen(true);
+                    }}
+                  >
+                    <MessageSquarePlus className="h-3 w-3" />
+                    Add Log
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRefreshHistory();
+                    }}
+                  >
+                    <RefreshCw className={`h-3 w-3 text-muted-foreground ${logsLoading ? 'animate-spin' : ''}`} />
+                  </Button>
+                </button>
+              </CollapsibleTrigger>
+             <CollapsibleContent className="flex-1 min-h-0 collapsible-content data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up">
+                <div className="h-[280px] overflow-y-auto">
+                     {/* Bulk actions bar */}
+                     {selectedLogIds.length > 0 && (
+                       <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/40 border-b border-border/20">
+                         <span className="text-[10px] text-muted-foreground">{selectedLogIds.length} selected</span>
+                         <Button variant="ghost" size="sm" className="h-5 px-1.5 text-[10px] text-destructive hover:text-destructive gap-1" onClick={handleBulkDeleteLogs}>
+                           <Trash2 className="h-3 w-3" /> Delete Selected
+                         </Button>
+                       </div>
+                     )}
+                     {isLoading ? (
+                       <div className="flex items-center justify-center py-6">
+                         <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+                       </div>
+                     ) : filteredSortedLogs.length === 0 ? (
+                       <div className="flex items-center justify-center py-6 text-muted-foreground">
+                         <History className="h-4 w-4 mr-2" />
+                         <span className="text-xs">{historyTypeFilter !== 'All' ? 'No matching logs' : 'No history yet'}</span>
+                       </div>
+                     ) : (
+                       <Table>
+                         <TableHeader>
+                           <TableRow className="text-[11px] bg-muted/50">
+                             <TableHead className="h-7 px-1 w-7">
+                               <div className="flex items-center justify-center">
+                                 <Checkbox checked={allLogsSelected} onCheckedChange={toggleAllLogs} className={someLogsSelected ? 'data-[state=checked]:bg-primary' : ''} />
+                               </div>
+                             </TableHead>
+                             <TableHead className="h-7 px-2 text-[11px] font-bold">Changes</TableHead>
+                             <TableHead className="h-7 px-2 text-[11px] font-bold w-20">By</TableHead>
+                             <TableHead className="h-7 px-2 text-[11px] font-bold w-24">Time</TableHead>
+                             <TableHead className="h-7 px-1 text-[11px] font-bold text-center" style={{ width: '6.67%', maxWidth: '6.67%' }}>Type</TableHead>
+                             <TableHead className="h-7 px-1 w-8"></TableHead>
+                           </TableRow>
+                         </TableHeader>
+                         <TableBody>
+                           {filteredSortedLogs.map((log) => (
+                             <TableRow key={log.id} className={cn("text-xs group cursor-pointer hover:bg-muted/30", selectedLogIds.includes(log.id) && 'bg-primary/5')}>
+                               {/* Checkbox */}
+                               <TableCell onClick={e => e.stopPropagation()} className="py-1.5 px-1 w-7">
+                                 <div className="flex items-center justify-center">
+                                   <Checkbox checked={selectedLogIds.includes(log.id)} onCheckedChange={() => toggleLogItem(log.id)} />
+                                 </div>
+                               </TableCell>
+
+                               {/* Changes - clickable blue text */}
+                               <TableCell className="py-1.5 px-2">
+                                 <button 
+                                   onClick={() => setDetailLogId(log.id)}
+                                   className="hover:underline text-left whitespace-normal break-words text-[#2e538e] font-normal text-xs max-w-[200px] truncate block"
+                                 >
+                                   {(log.details as any)?.message || parseChangeSummary(log.action, log.details)}
+                                 </button>
+                               </TableCell>
+
+                               {/* By */}
                                <TableCell className="py-1.5 px-2 text-muted-foreground max-w-[80px] truncate text-[10px]">
                                  {log.user_id ? (displayNames[log.user_id] || '...') : '-'}
                                </TableCell>
-                              <TableCell className="py-1.5 px-2 max-w-[150px] truncate text-muted-foreground text-[10px]">
-                                 {(log.details as any)?.message || parseChangeSummary(log.action, log.details)}
-                              </TableCell>
-                              <TableCell className="py-1.5 px-2">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-5 w-5 p-0"
-                                  onClick={() => setDetailLogId(log.id)}
-                                >
-                                  <Eye className="h-3 w-3" />
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    )}
-                </div>
-             </CollapsibleContent>
-           </Collapsible>
+
+                               {/* Time */}
+                               <TableCell className="py-1.5 px-2 text-[10px] text-muted-foreground whitespace-nowrap w-24">
+                                 {formatHistoryDateTime(new Date(log.created_at))}
+                               </TableCell>
+
+                               {/* Type - colored dot with tooltip */}
+                               <TableCell className="py-1.5 px-1 text-center" style={{ width: '6.67%', maxWidth: '6.67%' }}>
+                                 <TooltipProvider>
+                                   <Tooltip>
+                                     <TooltipTrigger asChild>
+                                       <div className="flex items-center justify-center">
+                                         <div className={cn("h-2.5 w-2.5 rounded-full", getTypeDotColor(log.action))} />
+                                       </div>
+                                     </TooltipTrigger>
+                                     <TooltipContent side="top" className="text-xs">
+                                       <span className="capitalize">{log.action.toLowerCase()}</span>
+                                     </TooltipContent>
+                                   </Tooltip>
+                                 </TooltipProvider>
+                               </TableCell>
+
+                               {/* Actions dropdown */}
+                               <TableCell onClick={e => e.stopPropagation()} className="py-1.5 px-1 w-8">
+                                 <DropdownMenu>
+                                   <DropdownMenuTrigger asChild>
+                                     <Button variant="ghost" size="sm" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                       <MoreHorizontal className="h-3 w-3" />
+                                     </Button>
+                                   </DropdownMenuTrigger>
+                                   <DropdownMenuContent align="end" className="w-36">
+                                     <DropdownMenuItem onClick={() => setDetailLogId(log.id)}>
+                                       <Eye className="h-3 w-3 mr-2" /> View Details
+                                     </DropdownMenuItem>
+                                     <DropdownMenuSeparator />
+                                     <DropdownMenuItem onClick={() => handleDeleteLog(log.id)} className="text-destructive focus:text-destructive">
+                                       <Trash2 className="h-3 w-3 mr-2" /> Delete
+                                     </DropdownMenuItem>
+                                   </DropdownMenuContent>
+                                 </DropdownMenu>
+                               </TableCell>
+                             </TableRow>
+                           ))}
+                         </TableBody>
+                       </Table>
+                     )}
+                 </div>
+              </CollapsibleContent>
+            </Collapsible>
  
            {/* Action Items Section - Collapsible with flex-1 for equal height */}
            <Collapsible open={actionsOpen} onOpenChange={setActionsOpen} className={`flex flex-col ${actionsOpen ? 'flex-1' : ''} min-h-0`}>
