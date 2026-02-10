@@ -15,9 +15,9 @@ const defaultColumnWidths: Record<string, number> = {
   title: 300,
   assigned_to: 100,
   due_date: 100,
-  status: 40,
-  priority: 40,
-  module: 44,
+  status: 36,
+  priority: 36,
+  module: 36,
   actions: 60,
 };
 
