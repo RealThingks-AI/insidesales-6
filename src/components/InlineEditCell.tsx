@@ -94,9 +94,9 @@ export const InlineEditCell = ({
       setIsEditing(true);
     }} title="Click to edit">
         {isStage ? (
-          <Badge className={cn("text-xs font-medium px-2 py-0.5", stageColorClass)}>
+          <span className={cn("text-xs font-semibold", stageColorClass)}>
             {String(value)}
-          </Badge>
+          </span>
         ) : (
           <span className={cn("truncate flex-1 text-sm", isProjectName && "text-primary font-medium")}>{formatDisplayValue()}</span>
         )}
