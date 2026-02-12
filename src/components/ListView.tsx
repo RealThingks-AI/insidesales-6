@@ -62,6 +62,9 @@ export const ListView = ({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [dealToDelete, setDealToDelete] = useState<string | null>(null);
 
+  // Single active editor state
+  const [editingCellKey, setEditingCellKey] = useState<string | null>(null);
+
   // Column width and visibility preferences from database
   const { columnWidths, columns, saveColumnWidths, saveColumns } = useDealsColumnPreferences();
 
@@ -488,6 +491,9 @@ export const ListView = ({
                         onSave={handleInlineEdit}
                         type={getFieldType(column.field)}
                         options={getFieldOptions(column.field)}
+                        isEditing={editingCellKey === `${deal.id}-${column.field}`}
+                        onEditStart={() => setEditingCellKey(`${deal.id}-${column.field}`)}
+                        onEditEnd={() => setEditingCellKey(null)}
                       />
                     </TableCell>
                   ))}
