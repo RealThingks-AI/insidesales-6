@@ -1,32 +1,67 @@
 
 
-## Fix Scrollbars in Deals List View
+## Fix Inline Editing Bugs and Enhance Consistency in Deals List View
 
-### Problem
-The deals list view has two scroll issues:
-1. The horizontal scrollbar only appears at the very bottom of all records (inside the Table component's own overflow wrapper), not visible until you scroll all the way down
-2. Scrollbars are not always visible -- they auto-hide, making it hard to know content extends beyond the viewport
+### Issues Identified
 
-### Root Cause
-The `Table` component (`src/components/ui/table.tsx`) wraps the `<table>` in a `<div className="relative w-full overflow-auto">`. The `ListView.tsx` outer container (line 404) also has `overflow-auto`. This creates **nested scroll containers** -- the inner one captures horizontal scroll (only visible at content bottom), while the outer one handles vertical scroll.
+1. **Multiple cells editable simultaneously** -- Each `InlineEditCell` manages its own `isEditing` state independently, so clicking multiple cells opens multiple editors at once, cluttering the row (visible in the screenshot with multiple save/cancel buttons across a single row).
+
+2. **Select-based fields require manual save** -- Stage, Priority, and Select types open a dropdown, but the user still has to click the tiny checkmark to confirm. Industry standard: auto-save on selection for dropdowns.
+
+3. **Save/Cancel buttons overflow column width** -- The input field + two icon buttons (check + X) squeeze into fixed-width cells, causing content to overflow or wrap awkwardly, especially in narrow columns.
+
+4. **Stale edit value on re-render** -- `editValue` is set via `useState(value || '')` only on mount. If the deal data updates externally (e.g., real-time subscription), re-opening edit shows the old value.
+
+5. **Boolean switch needs manual save** -- The Switch toggle should auto-save when toggled, not require clicking the checkmark.
+
+6. **Date field lacks auto-save on blur** -- After picking a date, the user must click save. Should auto-save on blur.
 
 ### Solution
 
-**File 1: `src/components/ListView.tsx`**
-- Override the Table's inner wrapper by passing a className that removes its overflow (`[&>div]:overflow-visible`) so the outer container handles both horizontal and vertical scrolling
-- Add custom class for always-visible scrollbars on the outer scroll container
+**File: `src/components/InlineEditCell.tsx`**
 
-**File 2: `src/index.css`**
-- Add a utility CSS class (`.always-show-scrollbars`) that forces both scrollbars to always be visible using WebKit and Firefox scrollbar styling:
-  - `::-webkit-scrollbar` with explicit width/height
-  - `::-webkit-scrollbar-thumb` with visible thumb color
-  - `scrollbar-width: thin` for Firefox
-  - `overflow: scroll` to always reserve space for scrollbars
+- Add an `onEditStart` callback prop so the parent can close any other active editor
+- Add an `isEditing` controlled prop (optional) alongside internal state, allowing the parent (`ListView`) to enforce "one editor at a time"
+- Sync `editValue` with `value` prop using `useEffect` so stale values are avoided
+- Auto-save for Select, Stage, Priority, and Boolean types: call `handleSave` immediately on value change (no manual checkmark needed)
+- Auto-save for Date on blur
+- Make save/cancel buttons smaller and more compact (`h-5 w-5`) to reduce overflow
+- Hide save/cancel buttons for auto-save types (stage, priority, select, boolean) since they save automatically
+- Add click-outside detection to auto-cancel text/number/textarea edits
 
-### Changes Summary
+**File: `src/components/ListView.tsx`**
 
-| File | Change |
-|------|--------|
-| `src/index.css` | Add `.always-show-scrollbars` CSS utility class |
-| `src/components/ListView.tsx` | Apply always-visible scrollbar class to outer container; neutralize Table's inner overflow wrapper |
+- Add `editingCellKey` state (`string | null`) tracking the currently active edit cell (e.g., `"dealId-fieldName"`)
+- Pass `isEditing` and `onEditStart` props to each `InlineEditCell`
+- When a cell starts editing, set `editingCellKey` to that cell's key, which automatically closes any other active editor
+- This enforces the "only one edit field at a time" constraint
+
+### Technical Details
+
+**InlineEditCell changes:**
+- New props: `isEditing?: boolean`, `onEditStart?: () => void`, `onEditEnd?: () => void`
+- When `isEditing` prop is provided, it overrides internal state (controlled mode)
+- `useEffect` on `value` prop to sync `editValue` when not editing
+- For stage/priority/select: `onValueChange` calls save directly, then `onEditEnd`
+- For boolean: `onCheckedChange` calls save directly, then `onEditEnd`
+- For date: `onBlur` triggers save
+- For text/number/currency/textarea: keep save/cancel buttons but make them more compact
+
+**ListView changes:**
+- New state: `editingCellKey: string | null`
+- Each `InlineEditCell` receives:
+  - `isEditing={editingCellKey === \`\${deal.id}-\${column.field}\`}`
+  - `onEditStart={() => setEditingCellKey(\`\${deal.id}-\${column.field}\`)}`
+  - `onEditEnd={() => setEditingCellKey(null)}`
+
+### Summary of Fixes
+
+| Issue | Fix |
+|-------|-----|
+| Multiple editors open | Parent-controlled single `editingCellKey` state |
+| Select/Stage/Priority need manual save | Auto-save on value change |
+| Boolean needs manual save | Auto-save on toggle |
+| Date needs manual save | Auto-save on blur |
+| Save/Cancel overflow columns | Compact buttons; hidden for auto-save types |
+| Stale edit value | `useEffect` syncs value prop |
 
