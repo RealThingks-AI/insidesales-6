@@ -80,6 +80,17 @@ export const STAGE_COLORS = {
   Dropped: 'text-stage-dropped-foreground',
 };
 
+export const STAGE_BG_COLORS: Record<DealStage, string> = {
+  Lead: 'bg-stage-lead border-stage-lead-foreground/30',
+  Discussions: 'bg-stage-discussions border-stage-discussions-foreground/30',
+  Qualified: 'bg-stage-qualified border-stage-qualified-foreground/30',
+  RFQ: 'bg-stage-rfq border-stage-rfq-foreground/30',
+  Offered: 'bg-stage-offered border-stage-offered-foreground/30',
+  Won: 'bg-stage-won border-stage-won-foreground/30',
+  Lost: 'bg-stage-lost border-stage-lost-foreground/30',
+  Dropped: 'bg-stage-dropped border-stage-dropped-foreground/30',
+};
+
 export const getStageIndex = (stage: DealStage): number => {
   return DEAL_STAGES.indexOf(stage);
 };

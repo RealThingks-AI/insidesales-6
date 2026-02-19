@@ -85,9 +85,9 @@ export const InlineEditCell = ({
   // Click-outside detection for non-auto-save types
   useEffect(() => {
     if (!isEditing || isAutoSave) return;
-    const handleClickOutside = (e: MouseEvent) => {
+  const handleClickOutside = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        handleCancel();
+        handleSave();
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -124,8 +124,7 @@ export const InlineEditCell = ({
   const formatDisplayValue = () => {
     if (value === null || value === undefined || value === '') return '-';
     if (type === 'currency') {
-      const symbols = { USD: '$', EUR: '€', INR: '₹' };
-      return `${symbols[value.currency_type as keyof typeof symbols] || '€'}${Number(value).toLocaleString()}`;
+      return Number(value).toLocaleString();
     }
     if (type === 'date' && value) {
       try {
@@ -223,18 +222,18 @@ export const InlineEditCell = ({
         return (
           <div className="flex items-center gap-2 py-1">
             <Switch
-              checked={Boolean(value)}
+              checked={Boolean(editValue)}
               onCheckedChange={handleBooleanAutoSave}
             />
             <span className="text-sm text-muted-foreground">
-              {Boolean(value) ? 'Yes' : 'No'}
+              {Boolean(editValue) ? 'Yes' : 'No'}
             </span>
           </div>
         );
       case 'stage':
         return (
           <Select value={editValue} onValueChange={handleSelectAutoSave}>
-            <SelectTrigger className="w-full h-8 text-sm">
+            <SelectTrigger className="w-full h-8 text-sm min-w-[100px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -247,7 +246,7 @@ export const InlineEditCell = ({
       case 'priority':
         return (
           <Select value={editValue?.toString()} onValueChange={handleSelectAutoSave}>
-            <SelectTrigger className="w-full h-8 text-sm">
+            <SelectTrigger className="w-full h-8 text-sm min-w-[100px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -262,7 +261,7 @@ export const InlineEditCell = ({
       case 'select':
         return (
           <Select value={editValue} onValueChange={handleSelectAutoSave}>
-            <SelectTrigger className="w-full h-8 text-sm">
+            <SelectTrigger className="w-full h-8 text-sm min-w-[100px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -287,16 +286,16 @@ export const InlineEditCell = ({
   };
 
   return (
-    <div ref={containerRef} className="flex items-center gap-1 animate-fade-in" onClick={(e) => e.stopPropagation()}>
-      <div className="flex-1 min-w-0">
+    <div ref={containerRef} className="relative animate-fade-in" onClick={(e) => e.stopPropagation()}>
+      <div className="min-w-[60px]">
         {renderEditControl()}
       </div>
       {!isAutoSave && (
-        <div className="flex gap-0.5 ml-0.5 flex-shrink-0">
-          <Button size="sm" variant="ghost" onClick={handleSave} className="h-6 w-6 p-0 hover:bg-green-100" title="Save">
+        <div className="absolute -top-1 -right-1 flex gap-0.5 z-10">
+          <Button size="sm" variant="ghost" onClick={handleSave} className="h-5 w-5 p-0 bg-background border shadow-sm hover:bg-green-100" title="Save">
             <Check className="w-3 h-3 text-green-600" />
           </Button>
-          <Button size="sm" variant="ghost" onClick={handleCancel} className="h-6 w-6 p-0 hover:bg-red-100" title="Cancel">
+          <Button size="sm" variant="ghost" onClick={handleCancel} className="h-5 w-5 p-0 bg-background border shadow-sm hover:bg-red-100" title="Cancel">
             <X className="w-3 h-3 text-red-600" />
           </Button>
         </div>

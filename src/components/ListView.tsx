@@ -192,13 +192,30 @@ export const ListView = ({
     if (field === 'stage') return 'stage';
     if (field === 'priority') return 'priority';
     if (['total_contract_value', 'total_revenue'].includes(field)) return 'currency';
-    if (['expected_closing_date', 'start_date', 'end_date', 'proposal_due_date'].includes(field)) return 'date';
-    if (['probability', 'project_duration'].includes(field)) return 'number';
+    if (['expected_closing_date', 'start_date', 'end_date', 'proposal_due_date', 'rfq_received_date', 'signed_contract_date', 'implementation_start_date'].includes(field)) return 'date';
+    if (['probability', 'project_duration', 'quarterly_revenue_q1', 'quarterly_revenue_q2', 'quarterly_revenue_q3', 'quarterly_revenue_q4'].includes(field)) return 'number';
+    if (['customer_challenges', 'business_value', 'decision_maker_level'].includes(field)) return 'select';
+    if (field === 'relationship_strength') return 'select';
+    if (field === 'rfq_status') return 'select';
+    if (field === 'handoff_status') return 'select';
+    if (field === 'is_recurring') return 'select';
+    if (field === 'currency_type') return 'select';
+    if (['internal_comment', 'customer_need', 'action_items', 'won_reason', 'lost_reason', 'need_improvement', 'drop_reason'].includes(field)) return 'textarea';
     return 'text';
   };
 
   const getFieldOptions = (field: string): string[] => {
-    return [];
+    const optionsMap: Record<string, string[]> = {
+      customer_challenges: ['Open', 'Ongoing', 'Done'],
+      business_value: ['Open', 'Ongoing', 'Done'],
+      decision_maker_level: ['Open', 'Ongoing', 'Done'],
+      relationship_strength: ['Low', 'Medium', 'High'],
+      rfq_status: ['Drafted', 'Submitted', 'Rejected', 'Accepted'],
+      handoff_status: ['Not Started', 'In Progress', 'Complete'],
+      is_recurring: ['Yes', 'No', 'Unclear'],
+      currency_type: ['EUR', 'USD', 'INR'],
+    };
+    return optionsMap[field] || [];
   };
 
   const visibleColumns = columns
@@ -404,7 +421,7 @@ export const ListView = ({
       </div>
 
       {/* Content Area - single scroll container */}
-      <div className="flex-1 min-h-0 overflow-scroll always-show-scrollbars [&>div.relative]:!overflow-visible">
+      <div className="flex-1 min-h-0 overflow-scroll always-show-scrollbars">
         <Table ref={tableRef} className="w-full">
           <TableHeader className="sticky top-0 bg-muted/80 backdrop-blur-sm z-20 border-b-2">
             <TableRow className="hover:bg-muted/60 transition-colors border-b">
