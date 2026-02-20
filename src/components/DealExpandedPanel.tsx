@@ -771,7 +771,7 @@ export const DealExpandedPanel = ({
                           e.stopPropagation();
                           handleActionItemClick(item);
                         }}
-                        className="hover:underline text-left whitespace-normal break-words text-[#2e538e] font-normal text-xs">
+                        className="hover:underline text-left whitespace-normal break-words text-[#2e538e] font-normal text-sm">
 
                               {item.title}
                             </button>
