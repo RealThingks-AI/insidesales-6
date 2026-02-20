@@ -130,14 +130,20 @@ export const ContactSearchableDropdown = ({
           </div>
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start" side="bottom" avoidCollisions={false}>
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start" side="bottom" avoidCollisions={false} style={{ pointerEvents: 'auto' }}>
         <Command shouldFilter={false}>
           <CommandInput
             placeholder="Search contacts..."
             value={searchValue}
             onValueChange={setSearchValue}
           />
-          <CommandList>
+          <CommandList
+            onWheel={(e) => {
+              e.stopPropagation();
+              const target = e.currentTarget;
+              target.scrollTop += e.deltaY;
+            }}
+          >
             {loading ? (
               <div className="flex items-center justify-center py-6">
                 <Loader2 className="h-4 w-4 animate-spin" />
