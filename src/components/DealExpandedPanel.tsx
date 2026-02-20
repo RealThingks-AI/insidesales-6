@@ -823,7 +823,7 @@ export const DealExpandedPanel = ({
 
 
                       <button onClick={() => setEditingDateId(item.id)} className="hover:underline text-[11px]">
-                                {item.due_date ? formatHistoryDateTime(new Date(item.due_date)) : "—"}
+                                {item.due_date ? format(new Date(item.due_date), "dd-MM-yy") : "—"}
                               </button>
                       }
                           </TableCell>
