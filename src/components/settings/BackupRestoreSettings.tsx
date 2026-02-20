@@ -54,7 +54,7 @@ const MODULES = [
   { id: 'contacts', name: 'Contacts', icon: Users, color: 'text-green-500' },
   { id: 'accounts', name: 'Accounts', icon: Building2, color: 'text-purple-500' },
   { id: 'deals', name: 'Deals', icon: Briefcase, color: 'text-orange-500' },
-  { id: 'action_items', name: 'Tasks', icon: CheckSquare, color: 'text-cyan-500' },
+  { id: 'action_items', name: 'Action Items', icon: CheckSquare, color: 'text-cyan-500' },
 ];
 
 const FREQUENCY_MAP: Record<string, number> = {
