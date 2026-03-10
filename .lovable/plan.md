@@ -1,82 +1,91 @@
 
 
-## Fix Mouse Scroll in Contact and Account Dropdowns (Inside Dialog)
+## Fix Note Editor Bullet Point & Stakeholders Layout Issues
 
-### Root Cause
+### Issues Found
 
-The Contact and Account searchable dropdowns use a `Popover` + `Command` (cmdk) combo that is rendered **inside a Radix Dialog** (the DealForm modal). This is a well-documented Radix UI bug (GitHub issues #3423, #542, #6988): when a Popover is nested inside a Dialog, the Dialog's pointer-events management blocks mouse wheel scroll events from reaching the Popover's scrollable content.
+1. **Bullet point moves when typing**: `autoFocus` on the Textarea (line 633) places the cursor at position 0 (before `"• "`), so typing inserts text before the bullet instead of after it.
 
-The previous fix (removing `overflow-hidden` from `CommandGroup`) was correct in principle but didn't address this specific Dialog-nesting issue.
+2. **Notes panel lacks proper scrollbar**: The notes summary panel (line 580-679) has a `max-h-[280px]` on the inner div but the outer wrapper has no scroll constraint, so it still pushes content.
 
-### Solution
+3. **Stakeholders section grows unbounded**: The `StakeholdersSection` component has no max-height. When the Notes panel is open with many notes, it consumes all vertical space, squishing the Updates and Action Items sections to near-zero height.
 
-Apply two targeted fixes:
+### Changes (single file: `src/components/DealExpandedPanel.tsx`)
 
-1. **Add `pointer-events: auto` style to the `PopoverContent`** in both dropdown components -- this overrides the Dialog's `pointer-events: none` that blocks interaction with portal-rendered content.
+#### Fix 1: Bullet cursor positioning (line 628-634)
 
-2. **Add a direct `onWheel` handler on `CommandList`** as a belt-and-suspenders fix -- this manually scrolls the list element when the mouse wheel event fires, completely bypassing any event propagation issues.
-
-### Files to Modify (2 files)
-
-**1. `src/components/ContactSearchableDropdown.tsx`**
-
-On the `PopoverContent` element (line 133), add `style={{ pointerEvents: 'auto' }}`.
-
-On the `CommandList` element (line 140), add an `onWheel` handler that manually scrolls:
+Replace `autoFocus` on the Textarea with a `ref` callback that focuses the element AND places the cursor at the end of the text (after `"• "`):
 
 ```tsx
-<PopoverContent
-  className="w-[--radix-popover-trigger-width] p-0"
-  align="start"
-  side="bottom"
-  avoidCollisions={false}
-  style={{ pointerEvents: 'auto' }}
->
-  <Command shouldFilter={false}>
-    <CommandInput ... />
-    <CommandList
-      onWheel={(e) => {
-        e.stopPropagation();
-        const target = e.currentTarget;
-        target.scrollTop += e.deltaY;
-      }}
-    >
+<Textarea
+  value={noteText}
+  onChange={(e) => setNoteText(e.target.value)}
+  onKeyDown={handleNoteKeyDown}
+  className="min-h-[100px] text-xs resize-none"
+  ref={(el) => {
+    if (el) {
+      el.focus();
+      const len = el.value.length;
+      el.selectionStart = len;
+      el.selectionEnd = len;
+    }
+  }}
+/>
 ```
 
-**2. `src/components/AccountSearchableDropdown.tsx`**
+#### Fix 2: Constrain Stakeholders section height
 
-Same changes on the `PopoverContent` element (line 107) and `CommandList` element (line 114):
+Wrap the StakeholdersSection output in a container with `max-h` and `overflow-y-auto` so it scrolls when content is large. Change the outer div (line 462) from:
 
 ```tsx
-<PopoverContent
-  className="w-[--radix-popover-trigger-width] p-0"
-  align="start"
-  side="bottom"
-  avoidCollisions={false}
-  style={{ pointerEvents: 'auto' }}
->
-  <Command shouldFilter={false}>
-    <CommandInput ... />
-    <CommandList
-      onWheel={(e) => {
-        e.stopPropagation();
-        const target = e.currentTarget;
-        target.scrollTop += e.deltaY;
-      }}
-    >
+<div className="px-3 pt-1.5 pb-1">
 ```
 
-**3. `src/components/LeadSearchableDropdown.tsx`** (used in Deal forms too)
+to:
 
-Same pattern applied to its `PopoverContent` and `CommandList` for consistency.
+```tsx
+<div className="px-3 pt-1.5 pb-1 max-h-[45%] overflow-y-auto shrink-0">
+```
 
-### Why This Works
+However, since this is not inside a flex parent that uses percentage heights well, a better approach is to change the parent layout. The parent (line 1182) is:
 
-- `pointer-events: auto` on `PopoverContent` overrides the `pointer-events: none` that the Dialog overlay sets, allowing mouse events (including wheel) to reach the Popover content.
-- The `onWheel` handler on `CommandList` is a direct, imperative scroll that works even if the wheel event doesn't naturally propagate through the DOM due to Radix's focus/event management.
-- `e.stopPropagation()` prevents the wheel event from bubbling up to the Dialog and triggering unwanted behavior.
+```tsx
+<div className="flex-1 min-h-0 flex flex-col overflow-hidden gap-1">
+```
 
-### What Is NOT Changed
+The fix: Make the StakeholdersSection a flex item that can shrink, and give it a max-height so it doesn't dominate. Change line 1184 from:
 
-- The `command.tsx` shared component stays as-is (the `overflow-hidden` removal from the previous fix is already applied and still helpful).
-- No changes to the Dialog or Popover UI primitives -- the fix is scoped to the three dropdown components only.
+```tsx
+<StakeholdersSection deal={deal} queryClient={queryClient} />
+```
+
+to wrap it in a constrained container:
+
+```tsx
+<div className="shrink-0 max-h-[40%] overflow-y-auto">
+  <StakeholdersSection deal={deal} queryClient={queryClient} />
+</div>
+```
+
+This ensures:
+- Stakeholders section gets at most 40% of the panel height
+- When content exceeds that, a scrollbar appears
+- Updates and Action Items always get their fair share of space
+
+#### Fix 3: Ensure notes panel scrolls properly
+
+The notes summary panel (line 596) already has `max-h-[280px] overflow-y-auto`, but when inside the constrained container from Fix 2, this works correctly. No additional change needed here -- the outer scroll from Fix 2 handles it.
+
+### Summary
+
+| Change | Line(s) | Description |
+|--------|---------|-------------|
+| Replace `autoFocus` with ref callback | 628-634 | Cursor placed after bullet on open |
+| Wrap StakeholdersSection in scrollable container | 1184 | Max 40% height with scrollbar |
+
+### Technical Notes
+
+- The ref callback fires on every render, but since `el.focus()` is idempotent when already focused, this is harmless
+- The `max-h-[40%]` works because the parent has `flex-1 min-h-0` which resolves to an actual pixel height
+- Updates and Action Items sections keep their `flex-1 min-h-0` with `h-[220px]`, ensuring they share remaining space equally
+
