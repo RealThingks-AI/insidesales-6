@@ -73,48 +73,112 @@ async function sendEmailViaGraph(
   return true;
 }
 
+interface ActionItem {
+  title: string;
+  due_date: string | null;
+  priority: string;
+  status: string;
+}
+
+function categorizeItems(actionItems: ActionItem[], today: string): {
+  overdue: ActionItem[];
+  dueThisWeek: ActionItem[];
+  upcoming: ActionItem[];
+} {
+  const todayDate = new Date(today);
+  const oneWeekLater = new Date(todayDate);
+  oneWeekLater.setDate(oneWeekLater.getDate() + 7);
+
+  const overdue: ActionItem[] = [];
+  const dueThisWeek: ActionItem[] = [];
+  const upcoming: ActionItem[] = [];
+
+  for (const item of actionItems) {
+    if (item.due_date) {
+      const dueDate = new Date(item.due_date);
+      if (dueDate < todayDate) {
+        overdue.push(item);
+      } else if (dueDate <= oneWeekLater) {
+        dueThisWeek.push(item);
+      } else {
+        upcoming.push(item);
+      }
+    } else {
+      upcoming.push(item);
+    }
+  }
+
+  return { overdue, dueThisWeek, upcoming };
+}
+
+function buildCategoryTable(
+  items: ActionItem[],
+  headerText: string,
+  headerBg: string,
+  headerColor: string,
+  rowBg: string,
+  today: string
+): string {
+  if (items.length === 0) return '';
+
+  const rows = items.map((item) => {
+    const isOverdue = item.due_date && item.due_date < today;
+    const dueDateDisplay = item.due_date
+      ? `${item.due_date}${isOverdue ? ' ⚠️' : ''}`
+      : '—';
+    const priorityBadge =
+      item.priority === 'High'
+        ? '<span style="color:#DC2626;font-weight:600;">High</span>'
+        : item.priority === 'Medium'
+        ? '<span style="color:#D97706;">Medium</span>'
+        : '<span style="color:#6B7280;">Low</span>';
+
+    return `<tr style="background-color:${rowBg};">
+      <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;">${item.title}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;">${dueDateDisplay}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;">${priorityBadge}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;">${item.status}</td>
+    </tr>`;
+  }).join('');
+
+  return `
+    <div style="margin-bottom:20px;">
+      <div style="background-color:${headerBg};color:${headerColor};padding:10px 14px;border-radius:6px 6px 0 0;font-weight:600;font-size:14px;">
+        ${headerText} (${items.length})
+      </div>
+      <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #E5E7EB;border-top:none;border-radius:0 0 6px 6px;overflow:hidden;font-size:14px;color:#374151;">
+        <thead>
+          <tr style="background-color:#F9FAFB;">
+            <th style="padding:10px 12px;text-align:left;font-weight:600;border-bottom:2px solid #E5E7EB;">Title</th>
+            <th style="padding:10px 12px;text-align:left;font-weight:600;border-bottom:2px solid #E5E7EB;">Due Date</th>
+            <th style="padding:10px 12px;text-align:left;font-weight:600;border-bottom:2px solid #E5E7EB;">Priority</th>
+            <th style="padding:10px 12px;text-align:left;font-weight:600;border-bottom:2px solid #E5E7EB;">Status</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
 // Build HTML email for action item reminders
 function buildReminderEmail(
   userName: string,
-  actionItems: Array<{ title: string; due_date: string | null; priority: string; status: string }>,
+  actionItems: ActionItem[],
   overdueCount: number,
   highPriorityCount: number,
   appUrl: string
 ): string {
   const today = new Date().toISOString().split('T')[0];
-
-  const rows = actionItems
-    .map((item) => {
-      const isOverdue = item.due_date && item.due_date < today;
-      const isHigh = item.priority === 'High';
-      const rowStyle = isOverdue
-        ? 'background-color:#FEF2F2;'
-        : isHigh
-        ? 'background-color:#FFFBEB;'
-        : '';
-      const dueDateDisplay = item.due_date
-        ? `${item.due_date}${isOverdue ? ' ⚠️' : ''}`
-        : '—';
-      const priorityBadge =
-        item.priority === 'High'
-          ? '<span style="color:#DC2626;font-weight:600;">High</span>'
-          : item.priority === 'Medium'
-          ? '<span style="color:#D97706;">Medium</span>'
-          : '<span style="color:#6B7280;">Low</span>';
-
-      return `<tr style="${rowStyle}">
-        <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;">${item.title}</td>
-        <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;">${dueDateDisplay}</td>
-        <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;">${priorityBadge}</td>
-        <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;">${item.status}</td>
-      </tr>`;
-    })
-    .join('');
+  const { overdue, dueThisWeek, upcoming } = categorizeItems(actionItems, today);
 
   const summaryParts: string[] = [];
   if (overdueCount > 0) summaryParts.push(`<span style="color:#DC2626;font-weight:600;">${overdueCount} overdue</span>`);
   if (highPriorityCount > 0) summaryParts.push(`<span style="color:#D97706;font-weight:600;">${highPriorityCount} high priority</span>`);
   const summaryLine = summaryParts.length > 0 ? `<p style="margin:0 0 16px;">${summaryParts.join(' · ')}</p>` : '';
+
+  const overdueTable = buildCategoryTable(overdue, '🔴 Overdue Items', '#DC2626', '#FFFFFF', '#FEF2F2', today);
+  const dueThisWeekTable = buildCategoryTable(dueThisWeek, '🟡 Due This Week', '#D97706', '#FFFFFF', '#FFFBEB', today);
+  const upcomingTable = buildCategoryTable(upcoming, '🟢 Upcoming Items', '#16A34A', '#FFFFFF', '#F0FDF4', today);
 
   return `<!DOCTYPE html>
 <html>
@@ -122,7 +186,7 @@ function buildReminderEmail(
 <body style="margin:0;padding:0;background-color:#F3F4F6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#F3F4F6;padding:32px 16px;">
     <tr><td align="center">
-      <table width="600" cellpadding="0" cellspacing="0" style="background-color:#FFFFFF;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+      <table width="800" cellpadding="0" cellspacing="0" style="background-color:#FFFFFF;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
         <!-- Header -->
         <tr><td style="background-color:#1E40AF;padding:24px 32px;">
           <h1 style="margin:0;color:#FFFFFF;font-size:20px;font-weight:600;">📋 Daily Action Items Reminder</h1>
@@ -132,18 +196,9 @@ function buildReminderEmail(
           <p style="margin:0 0 16px;font-size:16px;color:#111827;">Hi ${userName},</p>
           <p style="margin:0 0 16px;font-size:15px;color:#374151;">You have <strong>${actionItems.length}</strong> pending action item${actionItems.length > 1 ? 's' : ''} that need your attention.</p>
           ${summaryLine}
-          <!-- Table -->
-          <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #E5E7EB;border-radius:6px;overflow:hidden;font-size:14px;color:#374151;">
-            <thead>
-              <tr style="background-color:#F9FAFB;">
-                <th style="padding:10px 12px;text-align:left;font-weight:600;border-bottom:2px solid #E5E7EB;">Title</th>
-                <th style="padding:10px 12px;text-align:left;font-weight:600;border-bottom:2px solid #E5E7EB;">Due Date</th>
-                <th style="padding:10px 12px;text-align:left;font-weight:600;border-bottom:2px solid #E5E7EB;">Priority</th>
-                <th style="padding:10px 12px;text-align:left;font-weight:600;border-bottom:2px solid #E5E7EB;">Status</th>
-              </tr>
-            </thead>
-            <tbody>${rows}</tbody>
-          </table>
+          ${overdueTable}
+          ${dueThisWeekTable}
+          ${upcomingTable}
           <!-- CTA -->
           <div style="margin-top:24px;text-align:center;">
             <a href="${appUrl}/action-items" style="display:inline-block;padding:12px 28px;background-color:#1E40AF;color:#FFFFFF;text-decoration:none;border-radius:6px;font-weight:600;font-size:14px;">View Action Items</a>
@@ -182,7 +237,6 @@ Deno.serve(async (req) => {
     if (testUserId) {
       console.log(`TEST MODE: Running for user ${testUserId} only, bypassing time checks`);
 
-      // In test mode, ensure the user has notification preferences with task_reminders enabled
       const { data: existingPref } = await supabase
         .from('notification_preferences')
         .select('user_id')
@@ -193,17 +247,14 @@ Deno.serve(async (req) => {
         await supabase
           .from('notification_preferences')
           .insert({ user_id: testUserId, task_reminders: true, email_notifications: true });
-        console.log(`Created notification preferences for test user ${testUserId}`);
       } else {
         await supabase
           .from('notification_preferences')
           .update({ task_reminders: true, email_notifications: true })
           .eq('user_id', testUserId);
-        console.log(`Updated notification preferences for test user ${testUserId}`);
       }
     }
 
-    // Get all users with task_reminders enabled
     let prefsQuery = supabase
       .from('notification_preferences')
       .select('user_id, daily_reminder_time, last_reminder_sent_at, email_notifications')
@@ -222,7 +273,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Get user timezones and emails from profiles
     const userIds = prefs.map(p => p.user_id);
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
@@ -236,7 +286,6 @@ Deno.serve(async (req) => {
     let notificationsSent = 0;
     let emailsSent = 0;
 
-    // Acquire Graph token once (only if any user has email_notifications enabled)
     let graphToken: string | null = null;
     const anyEmailEnabled = prefs.some(p => p.email_notifications);
     if (anyEmailEnabled) {
@@ -253,15 +302,12 @@ Deno.serve(async (req) => {
       const timezone = profile?.timezone || 'Asia/Kolkata';
       const reminderTime = pref.daily_reminder_time || '09:00';
 
-      // Get current time in user's timezone
       const userNow = new Date(now.toLocaleString('en-US', { timeZone: timezone }));
       const userHour = userNow.getHours();
       const userMinute = userNow.getMinutes();
 
-      // Parse reminder time
       const [reminderHour, reminderMinute] = reminderTime.split(':').map(Number);
 
-      // Check if current time is within a 15-minute window of the reminder time
       const userTotalMinutes = userHour * 60 + userMinute;
       const reminderTotalMinutes = reminderHour * 60 + reminderMinute;
       const diff = userTotalMinutes - reminderTotalMinutes;
@@ -270,13 +316,11 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Check if reminder already sent today (in user's timezone)
       const userToday = `${userNow.getFullYear()}-${(userNow.getMonth() + 1).toString().padStart(2, '0')}-${userNow.getDate().toString().padStart(2, '0')}`;
       if (!testUserId && pref.last_reminder_sent_at === userToday) {
         continue;
       }
 
-      // Query incomplete action items for this user
       const { data: actionItems, error: aiError } = await supabase
         .from('action_items')
         .select('id, title, due_date, priority, status')
@@ -293,7 +337,6 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Count overdue and high priority items
       const overdueCount = actionItems.filter(item => {
         if (!item.due_date) return false;
         return new Date(item.due_date) < new Date(userToday);
@@ -301,14 +344,12 @@ Deno.serve(async (req) => {
 
       const highPriorityCount = actionItems.filter(item => item.priority === 'High').length;
 
-      // Build in-app notification message
       let message = `📋 Daily Reminder: You have ${actionItems.length} pending action item${actionItems.length > 1 ? 's' : ''}`;
       const details: string[] = [];
       if (overdueCount > 0) details.push(`${overdueCount} overdue`);
       if (highPriorityCount > 0) details.push(`${highPriorityCount} high priority`);
       if (details.length > 0) message += ` (${details.join(', ')})`;
 
-      // Insert in-app notification
       const { error: notifError } = await supabase
         .from('notifications')
         .insert({
@@ -343,6 +384,21 @@ Deno.serve(async (req) => {
             if (sent) {
               emailsSent++;
               console.log(`Email sent to ${userEmail} for user ${pref.user_id}`);
+
+              // Record in email_history
+              const senderEmail = Deno.env.get('AZURE_SENDER_EMAIL') || 'system@crm.realthingks.com';
+              await supabase
+                .from('email_history')
+                .insert({
+                  recipient_email: userEmail,
+                  recipient_name: userName,
+                  sender_email: senderEmail,
+                  subject,
+                  body: htmlBody,
+                  status: 'sent',
+                  sent_by: pref.user_id,
+                  delivered_at: new Date().toISOString(),
+                });
             }
           } catch (emailErr) {
             console.error(`Error sending email to ${userEmail}:`, emailErr);

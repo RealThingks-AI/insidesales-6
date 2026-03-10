@@ -1,10 +1,11 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileText, History, BarChart3, Clock, TrendingUp, Send, MailOpen } from 'lucide-react';
+import { FileText, History, BarChart3 } from 'lucide-react';
 import SettingsLoadingSkeleton from './shared/SettingsLoadingSkeleton';
 
 const EmailTemplatesSettings = lazy(() => import('@/components/settings/EmailTemplatesSettings'));
+const EmailHistorySettings = lazy(() => import('@/components/settings/EmailHistorySettings'));
+const EmailAnalyticsDashboard = lazy(() => import('@/components/settings/EmailAnalyticsDashboard'));
 
 interface EmailCenterPageProps {
   defaultTab?: string | null;
@@ -53,77 +54,15 @@ const EmailCenterPage = ({ defaultTab }: EmailCenterPageProps) => {
         </TabsContent>
 
         <TabsContent value="history" className="mt-6">
-          <Card>
-            <CardContent className="py-12">
-              <div className="text-center text-muted-foreground max-w-md mx-auto space-y-4">
-                <History className="h-12 w-12 mx-auto opacity-50" />
-                <div>
-                  <p className="font-medium text-foreground">Email History</p>
-                  <p className="text-sm mt-1">
-                    Track all sent emails with delivery status, timestamps, and recipient details.
-                  </p>
-                </div>
-                <div className="grid grid-cols-2 gap-3 pt-2">
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Send className="h-3.5 w-3.5" />
-                    <span>Sent & delivery tracking</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Clock className="h-3.5 w-3.5" />
-                    <span>Timestamps & logs</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <MailOpen className="h-3.5 w-3.5" />
-                    <span>Open rate tracking</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <FileText className="h-3.5 w-3.5" />
-                    <span>Template usage stats</span>
-                  </div>
-                </div>
-                <p className="text-xs text-muted-foreground pt-2">
-                  This section will activate once email sending is configured.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          <Suspense fallback={<SettingsLoadingSkeleton />}>
+            <EmailHistorySettings />
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="analytics" className="mt-6">
-          <Card>
-            <CardContent className="py-12">
-              <div className="text-center text-muted-foreground max-w-md mx-auto space-y-4">
-                <BarChart3 className="h-12 w-12 mx-auto opacity-50" />
-                <div>
-                  <p className="font-medium text-foreground">Email Analytics</p>
-                  <p className="text-sm mt-1">
-                    View performance metrics for your email campaigns and templates.
-                  </p>
-                </div>
-                <div className="grid grid-cols-2 gap-3 pt-2">
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <TrendingUp className="h-3.5 w-3.5" />
-                    <span>Open & click rates</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <BarChart3 className="h-3.5 w-3.5" />
-                    <span>Volume trends</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <FileText className="h-3.5 w-3.5" />
-                    <span>Template performance</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Send className="h-3.5 w-3.5" />
-                    <span>Delivery reports</span>
-                  </div>
-                </div>
-                <p className="text-xs text-muted-foreground pt-2">
-                  Analytics will be available once email history tracking is enabled.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          <Suspense fallback={<SettingsLoadingSkeleton rows={3} />}>
+            <EmailAnalyticsDashboard />
+          </Suspense>
         </TabsContent>
       </Tabs>
     </div>
