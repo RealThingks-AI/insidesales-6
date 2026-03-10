@@ -304,7 +304,7 @@ const EmailHistorySettings = () => {
       </div>
 
       {totalPages > 1 && (
-        <StandardPagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+        <StandardPagination currentPage={currentPage} totalPages={totalPages} totalItems={filteredEmails.length} itemsPerPage={ITEMS_PER_PAGE} onPageChange={setCurrentPage} />
       )}
 
       {/* Detail Dialog */}
