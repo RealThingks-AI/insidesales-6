@@ -46,6 +46,11 @@ export function CampaignMARTRegion({ campaign }: Props) {
     return getCountriesForRegion(form.region);
   }, [form.region]);
 
+  const filteredTimezones = useMemo(() => {
+    if (form.country) return getTimezonesForCountry(form.country);
+    return TIMEZONE_LIST;
+  }, [form.country]);
+
   const timezoneLabel = useMemo(() => {
     if (!form.timezone) return "";
     const tz = TIMEZONE_LIST.find(t => t.value === form.timezone);
