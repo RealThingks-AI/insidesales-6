@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
 import { useCampaigns, type CampaignFormData, type Campaign } from "@/hooks/useCampaigns";
+import { supabase } from "@/integrations/supabase/client";
 import { useAllUsers } from "@/hooks/useUserDisplayNames";
 
 const CAMPAIGN_TYPES = ["Cold Outreach", "Nurture", "Re-engagement", "Event", "Product Launch"];
