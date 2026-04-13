@@ -231,8 +231,8 @@ export function CampaignModal({ open, onClose, campaign, isMARTComplete = false,
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={createCampaign.isPending || updateCampaign.isPending}>
-            {createCampaign.isPending || updateCampaign.isPending ? "Saving..." : isEditing ? "Update" : "Create"}
+          <Button onClick={handleSubmit} disabled={submitting || createCampaign.isPending || updateCampaign.isPending}>
+            {submitting || createCampaign.isPending || updateCampaign.isPending ? "Saving..." : isEditing ? "Update" : "Create"}
           </Button>
         </DialogFooter>
       </DialogContent>
