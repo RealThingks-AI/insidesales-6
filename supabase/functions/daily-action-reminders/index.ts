@@ -74,10 +74,13 @@ async function sendEmailViaGraph(
 }
 
 interface ActionItem {
+  id: string;
   title: string;
   due_date: string | null;
   priority: string;
   status: string;
+  module_type: string | null;
+  module_id: string | null;
 }
 
 function categorizeItems(actionItems: ActionItem[], today: string): {
@@ -117,7 +120,9 @@ function buildCategoryTable(
   headerBg: string,
   headerColor: string,
   rowBg: string,
-  today: string
+  today: string,
+  appUrl: string,
+  accountMap: Map<string, string>
 ): string {
   if (items.length === 0) return '';
 
@@ -133,8 +138,11 @@ function buildCategoryTable(
         ? '<span style="color:#D97706;">Medium</span>'
         : '<span style="color:#6B7280;">Low</span>';
 
+    const accountName = accountMap.get(item.id) || '—';
+    const itemUrl = `${appUrl}/action-items?highlight=${encodeURIComponent(item.title)}`;
     return `<tr style="background-color:${rowBg};">
-      <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;">${item.title}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;">${accountName}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;"><a href="${itemUrl}" style="color:#1E40AF;text-decoration:underline;font-weight:500;" target="_blank">${item.title}</a></td>
       <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;">${dueDateDisplay}</td>
       <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;">${priorityBadge}</td>
       <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;">${item.status}</td>
@@ -149,6 +157,7 @@ function buildCategoryTable(
       <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #E5E7EB;border-top:none;border-radius:0 0 6px 6px;overflow:hidden;font-size:14px;color:#374151;">
         <thead>
           <tr style="background-color:#F9FAFB;">
+            <th style="padding:10px 12px;text-align:left;font-weight:600;border-bottom:2px solid #E5E7EB;">Account</th>
             <th style="padding:10px 12px;text-align:left;font-weight:600;border-bottom:2px solid #E5E7EB;">Title</th>
             <th style="padding:10px 12px;text-align:left;font-weight:600;border-bottom:2px solid #E5E7EB;">Due Date</th>
             <th style="padding:10px 12px;text-align:left;font-weight:600;border-bottom:2px solid #E5E7EB;">Priority</th>
@@ -166,7 +175,8 @@ function buildReminderEmail(
   actionItems: ActionItem[],
   overdueCount: number,
   highPriorityCount: number,
-  appUrl: string
+  appUrl: string,
+  accountMap: Map<string, string>
 ): string {
   const today = new Date().toISOString().split('T')[0];
   const { overdue, dueThisWeek, upcoming } = categorizeItems(actionItems, today);
@@ -176,9 +186,9 @@ function buildReminderEmail(
   if (highPriorityCount > 0) summaryParts.push(`<span style="color:#D97706;font-weight:600;">${highPriorityCount} high priority</span>`);
   const summaryLine = summaryParts.length > 0 ? `<p style="margin:0 0 16px;">${summaryParts.join(' · ')}</p>` : '';
 
-  const overdueTable = buildCategoryTable(overdue, '🔴 Overdue Items', '#DC2626', '#FFFFFF', '#FEF2F2', today);
-  const dueThisWeekTable = buildCategoryTable(dueThisWeek, '🟡 Due This Week', '#D97706', '#FFFFFF', '#FFFBEB', today);
-  const upcomingTable = buildCategoryTable(upcoming, '🟢 Upcoming Items', '#16A34A', '#FFFFFF', '#F0FDF4', today);
+  const overdueTable = buildCategoryTable(overdue, '🔴 Overdue Items', '#DC2626', '#FFFFFF', '#FEF2F2', today, appUrl, accountMap);
+  const dueThisWeekTable = buildCategoryTable(dueThisWeek, '🟡 Due This Week', '#D97706', '#FFFFFF', '#FFFBEB', today, appUrl, accountMap);
+  const upcomingTable = buildCategoryTable(upcoming, '🟢 Upcoming Items', '#16A34A', '#FFFFFF', '#F0FDF4', today, appUrl, accountMap);
 
   return `<!DOCTYPE html>
 <html>
@@ -235,7 +245,7 @@ Deno.serve(async (req) => {
     } catch { /* no body or not JSON */ }
 
     if (testUserId) {
-      console.log(`TEST MODE: Running for user ${testUserId} only, bypassing time checks`);
+      console.log(`[TEST MODE] Running for user ${testUserId} only, bypassing time checks`);
 
       const { data: existingPref } = await supabase
         .from('notification_preferences')
@@ -247,6 +257,7 @@ Deno.serve(async (req) => {
         await supabase
           .from('notification_preferences')
           .insert({ user_id: testUserId, task_reminders: true, email_notifications: true });
+        console.log(`[TEST MODE] Created notification_preferences for user ${testUserId}`);
       } else {
         await supabase
           .from('notification_preferences')
@@ -268,10 +279,13 @@ Deno.serve(async (req) => {
 
     if (prefsError) throw prefsError;
     if (!prefs || prefs.length === 0) {
+      console.log('[INFO] No users with task_reminders enabled found');
       return new Response(JSON.stringify({ message: 'No users with task reminders enabled' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    console.log(`[INFO] Found ${prefs.length} users with task_reminders enabled`);
 
     const userIds = prefs.map(p => p.user_id);
     const { data: profiles, error: profilesError } = await supabase
@@ -285,57 +299,149 @@ Deno.serve(async (req) => {
     const now = new Date();
     let notificationsSent = 0;
     let emailsSent = 0;
+    const skipped: { userId: string; reason: string }[] = [];
 
     let graphToken: string | null = null;
     const anyEmailEnabled = prefs.some(p => p.email_notifications);
     if (anyEmailEnabled) {
       try {
         graphToken = await getGraphAccessToken();
-        console.log('Graph API token acquired successfully');
+        console.log('[INFO] Graph API token acquired successfully');
       } catch (err) {
-        console.error('Failed to acquire Graph token, emails will be skipped:', err);
+        console.error('[CRITICAL] Failed to acquire Graph API token. ALL reminder emails will be skipped this cycle. Error:', (err as Error).message);
+        console.error('[CRITICAL] If this persists, check Azure Portal → App Registrations → Certificates & Secrets for expired client secret.');
+        
+        // Log failed email attempt to email_history for visibility
+        const senderEmail = Deno.env.get('AZURE_SENDER_EMAIL') || 'system@crm.realthingks.com';
+        await supabase
+          .from('email_history')
+          .insert({
+            recipient_email: 'system@failed',
+            recipient_name: 'SYSTEM - Graph Token Failure',
+            sender_email: senderEmail,
+            subject: '⚠️ Daily Reminder Emails Failed - Graph API Token Error',
+            body: `Graph API token acquisition failed: ${(err as Error).message}. All reminder emails skipped.`,
+            status: 'failed',
+            sent_by: null,
+          });
       }
     }
 
     for (const pref of prefs) {
       const profile = profileMap.get(pref.user_id);
+      const userName = profile?.full_name || 'Unknown';
+      const userEmail = profile?.['Email ID'] || null;
       const timezone = profile?.timezone || 'Asia/Kolkata';
-      const reminderTime = pref.daily_reminder_time || '09:00';
+
+      if (!profile) {
+        console.log(`[SKIP] User ${pref.user_id}: No profile found`);
+        skipped.push({ userId: pref.user_id, reason: 'no_profile' });
+        continue;
+      }
 
       const userNow = new Date(now.toLocaleString('en-US', { timeZone: timezone }));
-      const userHour = userNow.getHours();
-      const userMinute = userNow.getMinutes();
+      const dayOfWeek = userNow.getDay();
 
-      const [reminderHour, reminderMinute] = reminderTime.split(':').map(Number);
-
-      const userTotalMinutes = userHour * 60 + userMinute;
-      const reminderTotalMinutes = reminderHour * 60 + reminderMinute;
-      const diff = userTotalMinutes - reminderTotalMinutes;
-
-      if (!testUserId && (diff < 0 || diff >= 15)) {
+      // Skip weekends (Saturday=6, Sunday=0)
+      if (!testUserId && (dayOfWeek === 0 || dayOfWeek === 6)) {
+        console.log(`[SKIP] ${userName} (${pref.user_id}): Weekend (day=${dayOfWeek})`);
+        skipped.push({ userId: pref.user_id, reason: 'weekend' });
         continue;
       }
 
       const userToday = `${userNow.getFullYear()}-${(userNow.getMonth() + 1).toString().padStart(2, '0')}-${userNow.getDate().toString().padStart(2, '0')}`;
       if (!testUserId && pref.last_reminder_sent_at === userToday) {
+        console.log(`[SKIP] ${userName} (${pref.user_id}): Already sent today (${userToday})`);
+        skipped.push({ userId: pref.user_id, reason: 'already_sent_today' });
         continue;
       }
 
       const { data: actionItems, error: aiError } = await supabase
         .from('action_items')
-        .select('id, title, due_date, priority, status')
+        .select('id, title, due_date, priority, status, module_type, module_id')
         .eq('assigned_to', pref.user_id)
         .neq('status', 'Completed')
         .is('archived_at', null);
 
       if (aiError) {
-        console.error(`Error fetching action items for user ${pref.user_id}:`, aiError);
+        console.error(`[ERROR] Fetching action items for ${userName} (${pref.user_id}):`, aiError);
+        skipped.push({ userId: pref.user_id, reason: 'action_items_query_error' });
         continue;
       }
 
       if (!actionItems || actionItems.length === 0) {
+        console.log(`[SKIP] ${userName} (${pref.user_id}): No pending action items`);
+        skipped.push({ userId: pref.user_id, reason: 'no_pending_items' });
         continue;
       }
+
+      console.log(`[PROCESS] ${userName} (${pref.user_id}): ${actionItems.length} pending items, email: ${userEmail || 'NONE'}`);
+
+      // Resolve account names for each action item
+      const accountMap = new Map<string, string>();
+      const directAccountIds: string[] = [];
+      const dealModuleIds: string[] = [];
+
+      for (const item of actionItems) {
+        if (item.module_type === 'accounts' && item.module_id) {
+          directAccountIds.push(item.module_id);
+        } else if (item.module_type === 'deals' && item.module_id) {
+          dealModuleIds.push(item.module_id);
+        }
+      }
+
+      // Fetch deals to get customer_name (text) and account_id (FK)
+      const dealAccountMap = new Map<string, string>();
+      if (dealModuleIds.length > 0) {
+        const { data: deals } = await supabase
+          .from('deals')
+          .select('id, customer_name, account_id')
+          .in('id', dealModuleIds);
+        console.log(`[DEBUG] deals fetched: ${JSON.stringify(deals)}`);
+        if (deals) {
+          for (const deal of deals) {
+            console.log(`[DEBUG] Processing deal ${deal.id}: customer_name="${deal.customer_name}", account_id="${deal.account_id}"`);
+            if (deal.customer_name) {
+              dealAccountMap.set(deal.id, deal.customer_name);
+            } else if (deal.account_id) {
+              dealAccountMap.set(deal.id, deal.account_id);
+              directAccountIds.push(deal.account_id);
+            }
+          }
+        }
+      }
+      console.log(`[DEBUG] dealModuleIds: ${JSON.stringify(dealModuleIds)}`);
+      console.log(`[DEBUG] dealAccountMap entries: ${JSON.stringify([...dealAccountMap.entries()])}`);
+
+      // Fetch account names only for direct account links and FK fallbacks
+      const uniqueAccountIds = [...new Set(directAccountIds)];
+      const accountNameMap = new Map<string, string>();
+      if (uniqueAccountIds.length > 0) {
+        const { data: accounts } = await supabase
+          .from('accounts')
+          .select('id, account_name')
+          .in('id', uniqueAccountIds);
+        if (accounts) {
+          for (const acc of accounts) {
+            accountNameMap.set(acc.id, acc.account_name);
+          }
+        }
+      }
+
+      // Build actionItemId → accountName map
+      for (const item of actionItems) {
+        if (item.module_type === 'accounts' && item.module_id) {
+          accountMap.set(item.id, accountNameMap.get(item.module_id) || '—');
+        } else if (item.module_type === 'deals' && item.module_id) {
+          const resolvedName = dealAccountMap.get(item.module_id);
+          if (resolvedName) {
+            // If it looks like a UUID, it's an account_id needing lookup; otherwise it's customer_name
+            const isUUID = /^[0-9a-f]{8}-/.test(resolvedName);
+            accountMap.set(item.id, isUUID ? (accountNameMap.get(resolvedName) || '—') : resolvedName);
+          }
+        }
+      }
+      console.log(`[DEBUG] final accountMap: ${JSON.stringify([...accountMap.entries()])}`);
 
       const overdueCount = actionItems.filter(item => {
         if (!item.due_date) return false;
@@ -360,32 +466,29 @@ Deno.serve(async (req) => {
         });
 
       if (notifError) {
-        console.error(`Error inserting notification for user ${pref.user_id}:`, notifError);
+        console.error(`[ERROR] Inserting notification for ${userName} (${pref.user_id}):`, notifError);
         continue;
       }
 
       notificationsSent++;
-      console.log(`Sent in-app reminder to user ${pref.user_id}: ${message}`);
+      console.log(`[OK] In-app notification sent to ${userName}`);
 
       // Send email if enabled and Graph token available
       if (pref.email_notifications && graphToken && profile) {
-        const userEmail = profile['Email ID'];
-        const userName = profile.full_name || 'User';
-
         if (userEmail) {
           try {
             const subject = overdueCount > 0
               ? `⚠️ ${overdueCount} Overdue Action Items - Daily Reminder`
               : `📋 ${actionItems.length} Pending Action Items - Daily Reminder`;
 
-            const htmlBody = buildReminderEmail(userName, actionItems, overdueCount, highPriorityCount, appUrl);
+            const htmlBody = buildReminderEmail(userName, actionItems, overdueCount, highPriorityCount, appUrl, accountMap);
             const sent = await sendEmailViaGraph(graphToken, userEmail, userName, subject, htmlBody);
 
             if (sent) {
               emailsSent++;
-              console.log(`Email sent to ${userEmail} for user ${pref.user_id}`);
+              console.log(`[OK] Email sent to ${userEmail} (${userName})`);
 
-              // Record in email_history
+              // Record in email_history with 'delivered' status
               const senderEmail = Deno.env.get('AZURE_SENDER_EMAIL') || 'system@crm.realthingks.com';
               await supabase
                 .from('email_history')
@@ -395,17 +498,36 @@ Deno.serve(async (req) => {
                   sender_email: senderEmail,
                   subject,
                   body: htmlBody,
-                  status: 'sent',
+                  status: 'delivered',
                   sent_by: pref.user_id,
                   delivered_at: new Date().toISOString(),
                 });
+            } else {
+              console.error(`[FAIL] Email failed for ${userEmail} (${userName})`);
+              // Log failed email to email_history for visibility
+              const senderEmail = Deno.env.get('AZURE_SENDER_EMAIL') || 'system@crm.realthingks.com';
+              await supabase
+                .from('email_history')
+                .insert({
+                  recipient_email: userEmail,
+                  recipient_name: userName,
+                  sender_email: senderEmail,
+                  subject,
+                  body: htmlBody,
+                  status: 'failed',
+                  sent_by: pref.user_id,
+                });
             }
           } catch (emailErr) {
-            console.error(`Error sending email to ${userEmail}:`, emailErr);
+            console.error(`[ERROR] Sending email to ${userEmail} (${userName}):`, emailErr);
           }
         } else {
-          console.log(`No email found for user ${pref.user_id}, skipping email`);
+          console.log(`[SKIP-EMAIL] ${userName} (${pref.user_id}): No email address in profile`);
         }
+      } else if (!pref.email_notifications) {
+        console.log(`[SKIP-EMAIL] ${userName}: email_notifications disabled`);
+      } else if (!graphToken) {
+        console.log(`[SKIP-EMAIL] ${userName}: No Graph token available`);
       }
 
       // Update last_reminder_sent_at
@@ -415,13 +537,20 @@ Deno.serve(async (req) => {
         .eq('user_id', pref.user_id);
     }
 
-    return new Response(JSON.stringify({
+    const summary = {
       message: `Processed ${prefs.length} users, sent ${notificationsSent} in-app reminders, ${emailsSent} emails`,
-    }), {
+      processed: prefs.length,
+      notifications_sent: notificationsSent,
+      emails_sent: emailsSent,
+      skipped: skipped,
+    };
+    console.log(`[SUMMARY] ${JSON.stringify(summary)}`);
+
+    return new Response(JSON.stringify(summary), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    console.error('Error in daily-action-reminders:', error);
+    console.error('[FATAL] Error in daily-action-reminders:', error);
     return new Response(JSON.stringify({ error: (error as Error).message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

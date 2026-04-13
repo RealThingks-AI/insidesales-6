@@ -252,6 +252,7 @@ const EmailHistorySettings = () => {
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="sent">Sent</SelectItem>
+            <SelectItem value="delivered">Delivered</SelectItem>
             <SelectItem value="bounced">Bounced</SelectItem>
             <SelectItem value="replied">Replied</SelectItem>
           </SelectContent>
