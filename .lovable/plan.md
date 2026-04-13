@@ -1,64 +1,46 @@
 
 
-## Enhanced Campaign Detail Overview + URL Improvements
-
-### Problem
-1. The Overview tab on the campaign detail page is basic — static stat cards, no clickable actions, no charts
-2. The browser URL shows `/campaigns/61f5e8ee-443b-42d6-bf4b-6ddfacc5d177` with UUID visible
-3. Stat cards don't navigate to the relevant tab when clicked
+## Expand Region Targeting: All Regions, All Countries, Formatted Timezones
 
 ### Changes
 
-#### 1. Enhanced Overview Section (`src/pages/CampaignDetail.tsx`)
+#### 1. Expand `src/utils/countryRegionMapping.ts`
 
-**Clickable stat cards:** Each of the 4 stat cards (Accounts targeted, Contacts targeted, Emails sent, Calls made) will navigate to the relevant tab when clicked:
-- "Accounts targeted" → switches to Accounts tab
-- "Contacts targeted" → switches to Contacts tab
-- "Emails sent" / "Calls made" → switches to Outreach tab
+**Regions**: Expand from 4 to 7 proper geographic regions:
+`Africa`, `Asia`, `Europe`, `Middle East`, `North America`, `Oceania`, `South America`
 
-**Add more stats row:** Add a second row with:
-- LinkedIn messages sent (from communications)
-- Responses (contacts with stage "Responded" or "Qualified")  
-- Deals created (from deals table linked by campaign_id)
-- MART completion percentage
+**Countries**: Add all ~200 UN-recognized countries, each mapped to its region. Alphabetically sorted within each region.
 
-**Add contact stage breakdown card:** Show a mini horizontal bar chart (Recharts) of contact stages — Not Contacted, Contacted, Responded, Qualified, Converted — so you see the campaign funnel at a glance.
+**Aliases**: Expand to cover common variants for the new countries.
 
-**Add outreach timeline card:** Show communication activity over time as a small area/line chart (messages per week).
+#### 2. Add timezone data with display format
 
-**Make MART Status clickable:** Clicking the MART Status card navigates to the MART Strategy tab.
+Create a `TIMEZONE_LIST` array in a new section of `countryRegionMapping.ts` (or inline in the component) with entries formatted as shown in the user's screenshot:
 
-**Make Recent Activity clickable:** Clicking individual activity items opens the Outreach tab.
+```
+UTC+05:30 Indian Standard Time (IST)
+UTC-05:00 Eastern Standard Time (EST)
+UTC+00:00 Greenwich Mean Time (GMT)
+UTC+01:00 Central European Time (CET)
+...
+```
 
-**Add Description section** if `campaign.description` exists (currently only Goal and Notes are shown).
+Each entry: `{ value: "Asia/Kolkata", label: "UTC+05:30 Indian Standard Time (IST)" }`
 
-#### 2. Set Page Title to Campaign Name (`src/pages/CampaignDetail.tsx`)
+Cover ~40 major timezone entries covering all UTC offsets from -12 to +14.
 
-Add `useEffect` to set `document.title` to the campaign name when loaded, so the browser tab shows the campaign name instead of UUID.
+#### 3. Update `src/components/campaigns/CampaignMARTRegion.tsx`
 
-#### 3. URL Slug Support — Not Feasible Without Breaking Changes
+- **Reorder fields** to: Region (1st) → Country (2nd) → Timezone (3rd)
+- **Region**: `Select` dropdown with all 7 regions
+- **Country**: `Select` dropdown filtered by selected region; auto-sets region when country is picked; resets country when region changes if mismatch
+- **Timezone**: `Select` dropdown using the new formatted labels (e.g., "UTC+05:30 Indian Standard Time (IST)") instead of raw IANA identifiers
+- **Validation**: Require region (not country) as minimum to save
 
-Replacing UUIDs in the URL with campaign names requires either:
-- A slug column in the database + migration + unique constraint
-- Or a two-step lookup (list all campaigns, find by name) which is fragile
+### Files Modified
 
-**Instead, the pragmatic fix:** Set `document.title` to the campaign name (browser tab shows name), and the header already prominently displays the campaign name. The UUID in the URL bar is a technical detail that doesn't affect UX significantly.
-
-#### 4. Additional Overview Data Fetching
-
-Add a query for deals linked to this campaign (`deals.campaign_id = campaignId`) to show deal stats on the overview. The `CampaignAnalytics` component already does this — we'll reuse the same query pattern.
-
-### File Changes
-
-| File | Changes |
-|------|---------|
-| `src/pages/CampaignDetail.tsx` | Enhance Overview tab: clickable stat cards, additional stats row, contact stage chart, outreach timeline chart, clickable MART status, description section, `document.title` set to campaign name |
-
-### Technical Details
-
-- Recharts (`BarChart`, `PieChart`) already imported in other components — will use same pattern
-- Contact stage data available from `detail.contacts` (each has `.stage`)  
-- Communications data available from `detail.communications` (each has `.communication_type` and `.communication_date`)
-- Deals query: `supabase.from("deals").select("id, stage").eq("campaign_id", campaignId)`
-- All stat cards get `cursor-pointer` + `onClick={() => setActiveTab("...")}` + hover effect
+| File | What |
+|------|------|
+| `src/utils/countryRegionMapping.ts` | Expand to 7 regions, ~200 countries, formatted timezone list |
+| `src/components/campaigns/CampaignMARTRegion.tsx` | Reorder to Region→Country→Timezone, all dropdowns, filtered country list, formatted timezone display |
 
