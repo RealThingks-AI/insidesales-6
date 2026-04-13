@@ -249,6 +249,136 @@ export const TIMEZONE_LIST: { value: string; label: string }[] = [
 ];
 
 /**
+ * Map each country to its applicable timezone IANA values.
+ * When a country is selected, only these timezones should appear.
+ */
+export const countryTimezones: Record<string, string[]> = {
+  // Africa
+  "Algeria": ["Africa/Lagos"], "Angola": ["Africa/Lagos"], "Benin": ["Africa/Lagos"],
+  "Botswana": ["Africa/Johannesburg"], "Burkina Faso": ["UTC"],
+  "Burundi": ["Africa/Johannesburg"], "Cabo Verde": ["Atlantic/Azores"],
+  "Cameroon": ["Africa/Lagos"], "Central African Republic": ["Africa/Lagos"],
+  "Chad": ["Africa/Lagos"], "Comoros": ["Africa/Nairobi"],
+  "Congo": ["Africa/Lagos"], "Côte d'Ivoire": ["UTC"],
+  "DR Congo": ["Africa/Lagos", "Africa/Johannesburg"],
+  "Djibouti": ["Africa/Nairobi"], "Egypt": ["Africa/Cairo"],
+  "Equatorial Guinea": ["Africa/Lagos"], "Eritrea": ["Africa/Nairobi"],
+  "Eswatini": ["Africa/Johannesburg"], "Ethiopia": ["Africa/Nairobi"],
+  "Gabon": ["Africa/Lagos"], "Gambia": ["UTC"],
+  "Ghana": ["UTC"], "Guinea": ["UTC"], "Guinea-Bissau": ["UTC"],
+  "Kenya": ["Africa/Nairobi"], "Lesotho": ["Africa/Johannesburg"],
+  "Liberia": ["UTC"], "Libya": ["Africa/Cairo"],
+  "Madagascar": ["Africa/Nairobi"], "Malawi": ["Africa/Johannesburg"],
+  "Mali": ["UTC"], "Mauritania": ["UTC"],
+  "Mauritius": ["Asia/Dubai"], "Morocco": ["Europe/London", "Africa/Lagos"],
+  "Mozambique": ["Africa/Johannesburg"], "Namibia": ["Africa/Johannesburg"],
+  "Niger": ["Africa/Lagos"], "Nigeria": ["Africa/Lagos"],
+  "Rwanda": ["Africa/Johannesburg"],
+  "São Tomé and Príncipe": ["UTC"],
+  "Senegal": ["UTC"], "Seychelles": ["Asia/Dubai"],
+  "Sierra Leone": ["UTC"], "Somalia": ["Africa/Nairobi"],
+  "South Africa": ["Africa/Johannesburg"], "South Sudan": ["Africa/Nairobi"],
+  "Sudan": ["Africa/Johannesburg"], "Tanzania": ["Africa/Nairobi"],
+  "Togo": ["UTC"], "Tunisia": ["Africa/Lagos"],
+  "Uganda": ["Africa/Nairobi"], "Zambia": ["Africa/Johannesburg"],
+  "Zimbabwe": ["Africa/Johannesburg"],
+  // Asia
+  "Afghanistan": ["Asia/Kabul"], "Bangladesh": ["Asia/Dhaka"],
+  "Bhutan": ["Asia/Dhaka"], "Brunei": ["Asia/Singapore"],
+  "Cambodia": ["Asia/Bangkok"], "China": ["Asia/Shanghai"],
+  "India": ["Asia/Kolkata"], "Indonesia": ["Asia/Jakarta", "Asia/Singapore"],
+  "Japan": ["Asia/Tokyo"], "Kazakhstan": ["Asia/Almaty"],
+  "Kyrgyzstan": ["Asia/Almaty"], "Laos": ["Asia/Bangkok"],
+  "Malaysia": ["Asia/Singapore"], "Maldives": ["Asia/Karachi"],
+  "Mongolia": ["Asia/Shanghai"], "Myanmar": ["Asia/Yangon"],
+  "Nepal": ["Asia/Kathmandu"], "North Korea": ["Asia/Seoul"],
+  "Pakistan": ["Asia/Karachi"], "Philippines": ["Asia/Singapore"],
+  "Singapore": ["Asia/Singapore"], "South Korea": ["Asia/Seoul"],
+  "Sri Lanka": ["Asia/Kolkata"], "Taiwan": ["Asia/Shanghai"],
+  "Tajikistan": ["Asia/Tashkent"], "Thailand": ["Asia/Bangkok"],
+  "Timor-Leste": ["Asia/Tokyo"], "Turkmenistan": ["Asia/Tashkent"],
+  "Uzbekistan": ["Asia/Tashkent"], "Vietnam": ["Asia/Bangkok"],
+  // Europe
+  "Albania": ["Europe/Paris"], "Andorra": ["Europe/Paris"],
+  "Armenia": ["Asia/Dubai"], "Austria": ["Europe/Paris"],
+  "Azerbaijan": ["Asia/Dubai"], "Belarus": ["Europe/Moscow"],
+  "Belgium": ["Europe/Paris"], "Bosnia and Herzegovina": ["Europe/Paris"],
+  "Bulgaria": ["Europe/Helsinki"], "Croatia": ["Europe/Paris"],
+  "Cyprus": ["Europe/Helsinki"], "Czech Republic": ["Europe/Paris"],
+  "Denmark": ["Europe/Paris"], "Estonia": ["Europe/Helsinki"],
+  "Finland": ["Europe/Helsinki"], "France": ["Europe/Paris"],
+  "Georgia": ["Asia/Dubai"], "Germany": ["Europe/Berlin"],
+  "Greece": ["Europe/Helsinki"], "Hungary": ["Europe/Paris"],
+  "Iceland": ["UTC"], "Ireland": ["Europe/London"],
+  "Italy": ["Europe/Paris"], "Kosovo": ["Europe/Paris"],
+  "Latvia": ["Europe/Helsinki"], "Liechtenstein": ["Europe/Paris"],
+  "Lithuania": ["Europe/Helsinki"], "Luxembourg": ["Europe/Paris"],
+  "Malta": ["Europe/Paris"], "Moldova": ["Europe/Helsinki"],
+  "Monaco": ["Europe/Paris"], "Montenegro": ["Europe/Paris"],
+  "Netherlands": ["Europe/Paris"], "North Macedonia": ["Europe/Paris"],
+  "Norway": ["Europe/Paris"], "Poland": ["Europe/Paris"],
+  "Portugal": ["Europe/London", "Atlantic/Azores"],
+  "Romania": ["Europe/Helsinki"], "Russia": ["Europe/Moscow", "Asia/Dubai", "Asia/Tashkent", "Asia/Almaty", "Asia/Bangkok", "Asia/Shanghai", "Asia/Tokyo"],
+  "San Marino": ["Europe/Paris"], "Serbia": ["Europe/Paris"],
+  "Slovakia": ["Europe/Paris"], "Slovenia": ["Europe/Paris"],
+  "Spain": ["Europe/Paris"], "Sweden": ["Europe/Paris"],
+  "Switzerland": ["Europe/Paris"], "Turkey": ["Europe/Istanbul"],
+  "UK": ["Europe/London"], "Ukraine": ["Europe/Helsinki"],
+  "Vatican City": ["Europe/Paris"],
+  // Middle East
+  "Bahrain": ["Asia/Riyadh"], "Iran": ["Asia/Tehran"],
+  "Iraq": ["Asia/Riyadh"], "Israel": ["Europe/Helsinki"],
+  "Jordan": ["Asia/Riyadh"], "Kuwait": ["Asia/Riyadh"],
+  "Lebanon": ["Europe/Helsinki"], "Oman": ["Asia/Dubai"],
+  "Palestine": ["Europe/Helsinki"], "Qatar": ["Asia/Riyadh"],
+  "Saudi Arabia": ["Asia/Riyadh"], "Syria": ["Asia/Riyadh"],
+  "UAE": ["Asia/Dubai"], "Yemen": ["Asia/Riyadh"],
+  // North America
+  "Antigua and Barbuda": ["America/Halifax"], "Bahamas": ["America/New_York"],
+  "Barbados": ["America/Halifax"], "Belize": ["America/Chicago"],
+  "Canada": ["America/St_Johns", "America/Halifax", "America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles"],
+  "Costa Rica": ["America/Chicago"], "Cuba": ["America/New_York"],
+  "Dominica": ["America/Halifax"], "Dominican Republic": ["America/Halifax"],
+  "El Salvador": ["America/Chicago"], "Grenada": ["America/Halifax"],
+  "Guatemala": ["America/Chicago"], "Haiti": ["America/New_York"],
+  "Honduras": ["America/Chicago"], "Jamaica": ["America/New_York"],
+  "Mexico": ["America/Chicago", "America/Denver", "America/Los_Angeles"],
+  "Nicaragua": ["America/Chicago"], "Panama": ["America/New_York"],
+  "Saint Kitts and Nevis": ["America/Halifax"],
+  "Saint Lucia": ["America/Halifax"],
+  "Saint Vincent and the Grenadines": ["America/Halifax"],
+  "Trinidad and Tobago": ["America/Halifax"],
+  "USA": ["America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles", "America/Anchorage", "Pacific/Honolulu"],
+  // Oceania
+  "Australia": ["Australia/Perth", "Australia/Adelaide", "Australia/Sydney"],
+  "Fiji": ["Pacific/Fiji"], "Kiribati": ["Pacific/Kiritimati"],
+  "Marshall Islands": ["Pacific/Auckland"], "Micronesia": ["Pacific/Guam"],
+  "Nauru": ["Pacific/Auckland"], "New Zealand": ["Pacific/Auckland"],
+  "Palau": ["Asia/Tokyo"], "Papua New Guinea": ["Pacific/Guam"],
+  "Samoa": ["Pacific/Midway"], "Solomon Islands": ["Pacific/Noumea"],
+  "Tonga": ["Pacific/Tongatapu"], "Tuvalu": ["Pacific/Auckland"],
+  "Vanuatu": ["Pacific/Noumea"],
+  // South America
+  "Argentina": ["America/Argentina/Buenos_Aires"],
+  "Bolivia": ["America/Halifax"], "Brazil": ["America/Sao_Paulo", "America/Halifax"],
+  "Chile": ["America/Halifax"], "Colombia": ["America/New_York"],
+  "Ecuador": ["America/New_York"], "Guyana": ["America/Halifax"],
+  "Paraguay": ["America/Halifax"], "Peru": ["America/New_York"],
+  "Suriname": ["America/Sao_Paulo"], "Uruguay": ["America/Sao_Paulo"],
+  "Venezuela": ["America/Caracas"],
+};
+
+/**
+ * Get filtered timezones for a given country.
+ * If no country selected, returns full list.
+ */
+export function getTimezonesForCountry(country: string): typeof TIMEZONE_LIST {
+  const tzValues = countryTimezones[country];
+  if (!tzValues || tzValues.length === 0) return TIMEZONE_LIST;
+  return TIMEZONE_LIST.filter(tz => tzValues.includes(tz.value));
+}
+
+/**
  * Get countries for a given region.
  */
 export function getCountriesForRegion(region: string): string[] {

@@ -52,7 +52,7 @@ export default function CampaignDetail() {
     }
   }, [detail.campaign, detail.isCampaignEnded]);
 
-  // Set document title and update URL to show campaign name instead of UUID
+  // Set document title and update URL to show campaign name only (no UUID)
   useEffect(() => {
     if (detail.campaign?.campaign_name) {
       document.title = `${detail.campaign.campaign_name} — Campaign`;
@@ -60,11 +60,11 @@ export default function CampaignDetail() {
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-|-$/g, "");
-      const newUrl = `/campaigns/${slug}--${id}`;
+      const newUrl = `/campaigns/${slug}`;
       window.history.replaceState(null, "", newUrl);
     }
     return () => { document.title = "CRM"; };
-  }, [detail.campaign?.campaign_name, id]);
+  }, [detail.campaign?.campaign_name]);
 
   if (detail.isLoading) {
     return (

@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useCampaigns, type Campaign } from "@/hooks/useCampaigns";
 import { useState, useMemo } from "react";
 import { Globe, Plus, Pencil, Trash2 } from "lucide-react";
-import { regions, countries, countryToRegion, getCountriesForRegion, TIMEZONE_LIST } from "@/utils/countryRegionMapping";
+import { regions, countries, countryToRegion, getCountriesForRegion, TIMEZONE_LIST, getTimezonesForCountry } from "@/utils/countryRegionMapping";
 
 interface RegionCard {
   country: string;
