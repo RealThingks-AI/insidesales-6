@@ -85,6 +85,11 @@ export function CampaignMARTRegion({ campaign }: Props) {
     if (region) {
       newForm.region = region;
     }
+    // Reset timezone if it's not valid for the new country
+    const validTzs = getTimezonesForCountry(value);
+    if (newForm.timezone && !validTzs.some(tz => tz.value === newForm.timezone)) {
+      newForm.timezone = validTzs.length === 1 ? validTzs[0].value : "";
+    }
     setForm(newForm);
   };
 
@@ -174,7 +179,7 @@ export function CampaignMARTRegion({ campaign }: Props) {
                 <Select value={form.timezone} onValueChange={v => setForm({ ...form, timezone: v })}>
                   <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select timezone..." /></SelectTrigger>
                   <SelectContent className="max-h-[300px]">
-                    {TIMEZONE_LIST.map(tz => <SelectItem key={tz.value} value={tz.value}>{tz.label}</SelectItem>)}
+                    {filteredTimezones.map(tz => <SelectItem key={tz.value} value={tz.value}>{tz.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
