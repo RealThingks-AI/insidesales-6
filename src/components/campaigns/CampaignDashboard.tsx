@@ -346,7 +346,7 @@ export function CampaignDashboard({ campaigns, getMartProgress }: CampaignDashbo
                   <div
                     key={c.id}
                     className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 rounded-md p-2 transition-colors"
-                    onClick={() => navigate(`/campaigns/${c.id}`)}
+                    onClick={() => { const slug = c.campaign_name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); navigate(`/campaigns/${slug}`); }}
                   >
                     <span className="text-xs truncate flex-1 min-w-0">{c.campaign_name}</span>
                     <span className="text-[10px] text-muted-foreground shrink-0">{c.mart.count}/{c.mart.total}</span>
@@ -420,7 +420,7 @@ export function CampaignDashboard({ campaigns, getMartProgress }: CampaignDashbo
                       <TableRow
                         key={c.id}
                         className="cursor-pointer hover:bg-muted/50 even:bg-muted/10"
-                        onClick={() => navigate(`/campaigns/${c.id}`)}
+                        onClick={() => { const slug = c.campaign_name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); navigate(`/campaigns/${slug}`); }}
                       >
                         <TableCell className="text-xs font-medium max-w-[200px] truncate">
                           {c.campaign_name}
