@@ -177,7 +177,10 @@ export default function Campaigns() {
                   <TableRow
                     key={campaign.id}
                     className={`cursor-pointer hover:bg-muted/50 ${campaign.archived_at ? "opacity-60" : ""}`}
-                    onClick={() => navigate(`/campaigns/${campaign.id}`)}
+                    onClick={() => {
+                      const slug = campaign.campaign_name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+                      navigate(`/campaigns/${slug}`);
+                    }}
                   >
                     <TableCell className="font-medium">
                       {campaign.campaign_name}
@@ -197,7 +200,10 @@ export default function Campaigns() {
                       <TooltipProvider delayDuration={300}>
                         <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                           <Tooltip><TooltipTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/campaigns/${campaign.id}`)}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
+                              const slug = campaign.campaign_name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+                              navigate(`/campaigns/${slug}`);
+                            }}>
                               <Eye className="h-4 w-4 text-muted-foreground" />
                             </Button>
                           </TooltipTrigger><TooltipContent>View</TooltipContent></Tooltip>

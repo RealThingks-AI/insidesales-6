@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useCampaigns, type Campaign } from "@/hooks/useCampaigns";
 import { useState, useMemo } from "react";
 import { Globe, Plus, Pencil, Trash2 } from "lucide-react";
-import { regions, countries, countryToRegion, getCountriesForRegion, TIMEZONE_LIST } from "@/utils/countryRegionMapping";
+import { regions, countries, countryToRegion, getCountriesForRegion, TIMEZONE_LIST, getTimezonesForCountry } from "@/utils/countryRegionMapping";
 
 interface RegionCard {
   country: string;
@@ -46,6 +46,11 @@ export function CampaignMARTRegion({ campaign }: Props) {
     return getCountriesForRegion(form.region);
   }, [form.region]);
 
+  const filteredTimezones = useMemo(() => {
+    if (form.country) return getTimezonesForCountry(form.country);
+    return TIMEZONE_LIST;
+  }, [form.country]);
+
   const timezoneLabel = useMemo(() => {
     if (!form.timezone) return "";
     const tz = TIMEZONE_LIST.find(t => t.value === form.timezone);
@@ -79,6 +84,11 @@ export function CampaignMARTRegion({ campaign }: Props) {
     const region = countryToRegion[value];
     if (region) {
       newForm.region = region;
+    }
+    // Reset timezone if it's not valid for the new country
+    const validTzs = getTimezonesForCountry(value);
+    if (newForm.timezone && !validTzs.some(tz => tz.value === newForm.timezone)) {
+      newForm.timezone = validTzs.length === 1 ? validTzs[0].value : "";
     }
     setForm(newForm);
   };
@@ -169,7 +179,7 @@ export function CampaignMARTRegion({ campaign }: Props) {
                 <Select value={form.timezone} onValueChange={v => setForm({ ...form, timezone: v })}>
                   <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select timezone..." /></SelectTrigger>
                   <SelectContent className="max-h-[300px]">
-                    {TIMEZONE_LIST.map(tz => <SelectItem key={tz.value} value={tz.value}>{tz.label}</SelectItem>)}
+                    {filteredTimezones.map(tz => <SelectItem key={tz.value} value={tz.value}>{tz.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>

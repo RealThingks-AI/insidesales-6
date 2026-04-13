@@ -28,8 +28,26 @@ const statusColors: Record<string, string> = {
 export default function CampaignDetail() {
   const { id: rawId } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  // Extract UUID from slug--uuid format, or use raw id if no slug
-  const id = rawId?.includes("--") ? rawId.split("--").pop() : rawId;
+  // Support multiple URL formats: UUID, slug--UUID, or slug-only
+  const isUUID = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+  const extractedId = rawId?.includes("--") ? rawId.split("--").pop() : rawId;
+  const isDirectUUID = extractedId ? isUUID(extractedId) : false;
+  
+  // If it's a slug-only URL, look up campaign by name
+  const { campaigns } = useCampaigns();
+  const id = useMemo(() => {
+    if (isDirectUUID) return extractedId;
+    // Slug-only: find campaign whose slugified name matches
+    if (rawId && campaigns.length > 0) {
+      const match = campaigns.find(c => {
+        const slug = c.campaign_name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+        return slug === rawId;
+      });
+      if (match) return match.id;
+    }
+    return extractedId;
+  }, [extractedId, isDirectUUID, rawId, campaigns]);
+
   const detail = useCampaignDetail(id);
   const { updateCampaign } = useCampaigns();
   const ownerIds = useMemo(() => [detail.campaign?.owner].filter(Boolean) as string[], [detail.campaign?.owner]);
@@ -52,7 +70,7 @@ export default function CampaignDetail() {
     }
   }, [detail.campaign, detail.isCampaignEnded]);
 
-  // Set document title and update URL to show campaign name instead of UUID
+  // Set document title and update URL to show campaign name only (no UUID)
   useEffect(() => {
     if (detail.campaign?.campaign_name) {
       document.title = `${detail.campaign.campaign_name} — Campaign`;
@@ -60,11 +78,11 @@ export default function CampaignDetail() {
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-|-$/g, "");
-      const newUrl = `/campaigns/${slug}--${id}`;
+      const newUrl = `/campaigns/${slug}`;
       window.history.replaceState(null, "", newUrl);
     }
     return () => { document.title = "CRM"; };
-  }, [detail.campaign?.campaign_name, id]);
+  }, [detail.campaign?.campaign_name]);
 
   if (detail.isLoading) {
     return (
